@@ -1,0 +1,289 @@
+version: "3.9"
+
+networks:
+  data-pipeline:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.23.0.0/24
+
+services:
+
+# ============================================
+# Postgres
+# ============================================
+
+  postgres:
+    image: postgres:13
+    container_name: postgres-airflow
+    hostname: postgres
+    mem_limit: ${POSTGRES_RAM}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+    healthcheck:
+      test: ["CMD","pg_isready","-U","${POSTGRES_USER}"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    networks:
+      - data-pipeline
+
+# ============================================
+# Airflow
+# ============================================
+
+  airflow-webserver:
+    image: apache/airflow:2.7.3-python3.10
+    container_name: airflow-webserver
+    mem_limit: ${AIRFLOW_WEBSERVER_RAM}
+    user: root
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      _PIP_ADDITIONAL_REQUIREMENTS: "kafka-python websockets python-dotenv prometheus-client"
+      KAFKA_BROKER: kafka:${KAFKA_INTERNAL_PORT}
+    env_file:
+      - .env
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./scripts:/opt/airflow/scripts
+    ports:
+      - "${AIRFLOW_WEBSERVER_EXTERNAL_PORT:-8087}:8080"
+    command: webserver
+    networks:
+      - data-pipeline
+
+  airflow-scheduler:
+    image: apache/airflow:2.7.3-python3.10
+    container_name: airflow-scheduler
+    mem_limit: ${AIRFLOW_SCHEDULER_RAM}
+    user: root
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    env_file:
+      - .env
+    volumes:
+      - ./dags:/opt/airflow/dags
+    command: scheduler
+    networks:
+      - data-pipeline
+
+  airflow-init:
+    image: apache/airflow:2.7.3-python3.10
+    container_name: airflow-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
+      _AIRFLOW_DB_UPGRADE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USER}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
+      _AIRFLOW_WWW_USER_FIRSTNAME: ${AIRFLOW_ADMIN_FIRSTNAME}
+      _AIRFLOW_WWW_USER_LASTNAME: ${AIRFLOW_ADMIN_LASTNAME}
+      _AIRFLOW_WWW_USER_EMAIL: ${AIRFLOW_ADMIN_EMAIL}
+      _AIRFLOW_WWW_USER_ROLE: Admin
+    entrypoint: /bin/bash
+    command: >
+      -c "airflow db migrate &&
+      airflow users create
+      --username ${AIRFLOW_ADMIN_USER}
+      --password ${AIRFLOW_ADMIN_PASSWORD}
+      --firstname ${AIRFLOW_ADMIN_FIRSTNAME}
+      --lastname ${AIRFLOW_ADMIN_LASTNAME}
+      --role Admin
+      --email ${AIRFLOW_ADMIN_EMAIL} || true"
+    networks:
+      - data-pipeline
+
+# ============================================
+# Zookeeper
+# ============================================
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    mem_limit: ${ZOOKEEPER_RAM}
+    ports:
+      - "${ZOOKEEPER_CLIENT_PORT}:${ZOOKEEPER_CLIENT_PORT}"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT}
+    networks:
+      - data-pipeline
+
+# ============================================
+# Kafka
+# ============================================
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    mem_limit: ${KAFKA_RAM}
+    depends_on:
+      - zookeeper
+    ports:
+      - "${KAFKA_EXTERNAL_PORT}:${KAFKA_EXTERNAL_PORT}"
+      - "9404:9404"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:${ZOOKEEPER_CLIENT_PORT}
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:${KAFKA_INTERNAL_PORT},PLAINTEXT_HOST://localhost:${KAFKA_EXTERNAL_PORT}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    command: >
+      bash -c "KAFKA_HEAP_OPTS='-Xmx512M -Xms512M'
+      /etc/confluent/docker/run"
+    networks:
+      - data-pipeline
+
+# ============================================
+# Kafka UI
+# ============================================
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui
+    container_name: kafka-ui
+    mem_limit: ${KAFKA_UI_RAM}
+    ports:
+      - "${KAFKA_UI_EXTERNAL_PORT:-8088}:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:${KAFKA_INTERNAL_PORT}
+    depends_on:
+      - kafka
+    networks:
+      - data-pipeline
+
+# ============================================
+# Flink
+# ============================================
+
+  flink-jobmanager:
+    image: flink:1.18
+    container_name: flink-jobmanager
+    mem_limit: ${FLINK_JOBMANAGER_RAM}
+    command: jobmanager
+    ports:
+      - "${FLINK_UI_PORT}:8081"
+    environment:
+      JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
+    networks:
+      - data-pipeline
+
+  flink-taskmanager:
+    image: flink:1.18
+    container_name: flink-taskmanager
+    mem_limit: ${FLINK_TASKMANAGER_RAM}
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    environment:
+      JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
+    networks:
+      - data-pipeline
+
+# ============================================
+# MinIO
+# ============================================
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    mem_limit: ${MINIO_RAM}
+    command: server /data --console-address ":9001"
+    ports:
+      - "${MINIO_API_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    networks:
+      - data-pipeline
+
+# ============================================
+# Iceberg REST
+# ============================================
+
+  iceberg-rest:
+    image: tabulario/iceberg-rest
+    container_name: iceberg-rest
+    mem_limit: ${ICEBERG_RAM}
+    ports:
+      - "${ICEBERG_REST_PORT}:8181"
+    environment:
+      CATALOG_WAREHOUSE: s3a://warehouse/
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_ENDPOINT: http://minio:9000
+      S3_PATH_STYLE_ACCESS: "true"
+    depends_on:
+      - minio
+    networks:
+      - data-pipeline
+
+# ============================================
+# dbt
+# ============================================
+
+  dbt:
+    image: ghcr.io/dbt-labs/dbt-core
+    container_name: dbt
+    mem_limit: ${DBT_RAM}
+    volumes:
+      - ./dbt:/usr/app
+    working_dir: /usr/app
+    networks:
+      - data-pipeline
+
+# ============================================
+# Monitoring
+# ============================================
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    mem_limit: ${PROMETHEUS_RAM}
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - data-pipeline
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    mem_limit: ${GRAFANA_RAM}
+    ports:
+      - "${GRAFANA_PORT}:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - data-pipeline
+
+volumes:
+  postgres_data:
+  minio_data:
