@@ -1,27 +1,24 @@
 #!/bin/bash
 
-PROJECT_DIR="$HOME/atlas-streaming"
-VENV_DIR="$PROJECT_DIR/.venv"
-PRODUCER_SCRIPT="$PROJECT_DIR/kafka/producer.py"
- 
-# Create virtual environment if it doesn't exist
-if [ ! -d "$VENV_DIR" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv "$VENV_DIR"
-fi
+# Config
+KAFKA_CONTAINER_NAME=kafka     
+TOPIC_NAME=atlas_measurements       
+PARTITIONS=4                   
+REPLICATION=1                   
+BOOTSTRAP_SERVER=kafka:9092     
 
-# Activate virtual environment
-echo "Activating virtual environment..."
-source "$VENV_DIR/bin/activate"
+# Create topic
+echo "Creating topic '$TOPIC_NAME' in Kafka..."
+docker exec -i $KAFKA_CONTAINER_NAME kafka-topics \
+  --create \
+  --topic $TOPIC_NAME \
+  --partitions $PARTITIONS \
+  --replication-factor $REPLICATION \
+  --if-not-exists \
+  --bootstrap-server $BOOTSTRAP_SERVER
 
-if ! python3 -c "import kafka" &> /dev/null; then
-    echo "Installing kafka-python..."
-    pip install --upgrade pip
-    pip install kafka-python
-fi
- 
-echo "Running Kafka producer..."
-python3 "$PRODUCER_SCRIPT"
-
-deactivate
-echo "Producer finished."
+# List topics
+echo "Current topics in Kafka:"
+docker exec -i $KAFKA_CONTAINER_NAME kafka-topics \
+  --list \
+  --bootstrap-server $BOOTSTRAP_SERVER
