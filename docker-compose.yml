@@ -191,8 +191,6 @@ services:
       JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
     volumes:
       - ./flink:/opt/flink/jobs
-      - ./flink/lib/flink-sql-connector-kafka-3.1.0-1.18.jar:/opt/flink/lib/flink-sql-connector-kafka-3.1.0-1.18.jar
-      - ./flink/lib/iceberg-flink-runtime-1.18-1.9.2.jar:/opt/flink/lib/iceberg-flink-runtime-1.18-1.9.2.jar
     networks:
       - data-pipeline
 
@@ -209,8 +207,6 @@ services:
       JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
     volumes:
       - ./flink:/opt/flink/jobs
-      - ./flink/lib/flink-sql-connector-kafka-3.1.0-1.18.jar:/opt/flink/lib/flink-sql-connector-kafka-3.1.0-1.18.jar
-      - ./flink/lib/iceberg-flink-runtime-1.18-1.9.2.jar:/opt/flink/lib/iceberg-flink-runtime-1.18-1.9.2.jar
     networks:
       - data-pipeline
 
