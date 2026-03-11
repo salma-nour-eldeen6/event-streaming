@@ -179,7 +179,9 @@ services:
   # ============================================
 
   flink-jobmanager:
-    image: flink:1.18
+    build:
+      context: .
+      dockerfile: Dockerfile.flink
     container_name: flink-jobmanager
     mem_limit: ${FLINK_JOBMANAGER_RAM}
     command: jobmanager
@@ -194,7 +196,9 @@ services:
       - data-pipeline
 
   flink-taskmanager:
-    image: flink:1.18
+    build:
+      context: .
+      dockerfile: Dockerfile.flink
     container_name: flink-taskmanager
     mem_limit: ${FLINK_TASKMANAGER_RAM}
     depends_on:
