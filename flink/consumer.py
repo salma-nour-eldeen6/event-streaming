@@ -1,23 +1,13 @@
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import StreamTableEnvironment, EnvironmentSettings
 
-KAFKA_JAR = "file:///opt/flink/usrlib/flink-sql-connector-kafka-3.1.0-1.18.jar"
-
 
 def main():
-
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_parallelism(1)
 
     settings = EnvironmentSettings.new_instance().in_streaming_mode().build()
-
     t_env = StreamTableEnvironment.create(env, environment_settings=settings)
-
-    # load kafka connector
-    t_env.get_config().get_configuration().set_string(
-        "pipeline.jars",
-        KAFKA_JAR
-    )
 
     print("Starting Flink Kafka debug job...")
 
@@ -27,9 +17,9 @@ def main():
             fw INT,
             mver STRING,
             dst_addr STRING,
-            avg DOUBLE,
-            min DOUBLE,
-            max DOUBLE,
+            `avg` DOUBLE,
+            `min` DOUBLE,
+            `max` DOUBLE,
             sent INT,
             rcvd INT,
             msm_id BIGINT,
@@ -47,15 +37,15 @@ def main():
         )
     """)
 
-    # print sink
+    # Print sink
     t_env.execute_sql("""
         CREATE TABLE print_sink (
             fw INT,
             mver STRING,
             dst_addr STRING,
-            avg DOUBLE,
-            min DOUBLE,
-            max DOUBLE,
+            `avg` DOUBLE,
+            `min` DOUBLE,
+            `max` DOUBLE,
             sent INT,
             rcvd INT,
             msm_id BIGINT,
@@ -67,7 +57,7 @@ def main():
         )
     """)
 
-    # pipeline
+    # Pipeline
     t_env.execute_sql("""
         INSERT INTO print_sink
         SELECT *
