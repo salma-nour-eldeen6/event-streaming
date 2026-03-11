@@ -8,10 +8,9 @@ networks:
         - subnet: 172.23.0.0/24
 
 services:
-
-# ============================================
-# Postgres
-# ============================================
+  # ============================================
+  # Postgres
+  # ============================================
 
   postgres:
     image: postgres:13
@@ -27,16 +26,16 @@ services:
     ports:
       - "${POSTGRES_PORT}:${POSTGRES_PORT}"
     healthcheck:
-      test: ["CMD","pg_isready","-U","${POSTGRES_USER}"]
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
       interval: 10s
       retries: 5
       start_period: 5s
     networks:
       - data-pipeline
 
-# ============================================
-# Airflow
-# ============================================
+  # ============================================
+  # Airflow
+  # ============================================
 
   airflow-webserver:
     image: apache/airflow:2.7.3-python3.10
@@ -50,8 +49,8 @@ services:
       AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR}
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
       _PIP_ADDITIONAL_REQUIREMENTS: "kafka-python websockets python-dotenv prometheus-client"
       KAFKA_BROKER: kafka:${KAFKA_INTERNAL_PORT}
     env_file:
@@ -95,8 +94,8 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR}
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
-      _AIRFLOW_DB_UPGRADE: 'true'
-      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_DB_UPGRADE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
       _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USER}
       _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
       _AIRFLOW_WWW_USER_FIRSTNAME: ${AIRFLOW_ADMIN_FIRSTNAME}
@@ -116,9 +115,9 @@ services:
     networks:
       - data-pipeline
 
-# ============================================
-# Zookeeper
-# ============================================
+  # ============================================
+  # Zookeeper
+  # ============================================
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -131,9 +130,9 @@ services:
     networks:
       - data-pipeline
 
-# ============================================
-# Kafka
-# ============================================
+  # ============================================
+  # Kafka
+  # ============================================
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -157,9 +156,9 @@ services:
     networks:
       - data-pipeline
 
-# ============================================
-# Kafka UI
-# ============================================
+  # ============================================
+  # Kafka UI
+  # ============================================
 
   kafka-ui:
     image: provectuslabs/kafka-ui
@@ -175,9 +174,9 @@ services:
     networks:
       - data-pipeline
 
-# ============================================
-# Flink
-# ============================================
+  # ============================================
+  # Flink
+  # ============================================
 
   flink-jobmanager:
     image: flink:1.18
@@ -188,6 +187,8 @@ services:
       - "${FLINK_UI_PORT}:8081"
     environment:
       JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
+    volumes:
+      - ./flink:/opt/flink/jobs
     networks:
       - data-pipeline
 
@@ -203,9 +204,9 @@ services:
     networks:
       - data-pipeline
 
-# ============================================
-# MinIO
-# ============================================
+  # ============================================
+  # MinIO
+  # ============================================
 
   minio:
     image: minio/minio
@@ -223,9 +224,9 @@ services:
     networks:
       - data-pipeline
 
-# ============================================
-# Iceberg REST
-# ============================================
+  # ============================================
+  # Iceberg REST
+  # ============================================
 
   iceberg-rest:
     image: tabulario/iceberg-rest
@@ -244,9 +245,9 @@ services:
     networks:
       - data-pipeline
 
-# ============================================
-# dbt
-# ============================================
+  # ============================================
+  # dbt
+  # ============================================
 
   dbt:
     image: ghcr.io/dbt-labs/dbt-core
@@ -258,9 +259,9 @@ services:
     networks:
       - data-pipeline
 
-# ============================================
-# Monitoring
-# ============================================
+  # ============================================
+  # Monitoring
+  # ============================================
 
   prometheus:
     image: prom/prometheus
