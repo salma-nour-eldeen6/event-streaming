@@ -189,6 +189,7 @@ services:
       JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
     volumes:
       - ./flink:/opt/flink/jobs
+        - ./flink/lib:/opt/flink/usrlib
     networks:
       - data-pipeline
 
@@ -201,6 +202,9 @@ services:
     command: taskmanager
     environment:
       JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
+    volumes:
+      - ./flink:/opt/flink/jobs
+        - ./flink/lib:/opt/flink/usrlib
     networks:
       - data-pipeline
 
