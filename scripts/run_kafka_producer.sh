@@ -3,7 +3,7 @@
 PROJECT_DIR="$HOME/atlas-streaming"
 VENV_DIR="$PROJECT_DIR/.venv"
 PRODUCER_SCRIPT="$PROJECT_DIR/kafka/producer.py"
- 
+
 # Create virtual environment if it doesn't exist
 if [ ! -d "$VENV_DIR" ]; then
     echo "Creating virtual environment..."
@@ -14,12 +14,10 @@ fi
 echo "Activating virtual environment..."
 source "$VENV_DIR/bin/activate"
 
-if ! python3 -c "import kafka" &> /dev/null; then
-    echo "Installing kafka-python..."
-    pip install --upgrade pip
-    pip install kafka-python
-fi
- 
+echo "Installing dependencies..."
+pip install --upgrade pip
+pip install -r "$PROJECT_DIR/requirements.txt"
+
 echo "Running Kafka producer..."
 python3 "$PRODUCER_SCRIPT"
 
