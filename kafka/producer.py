@@ -68,3 +68,7 @@ if __name__ == "__main__":
         print("WebSocket stopped by user")
     except Exception as e:
         print("Unexpected error running WebSocket:", e)
+    finally:
+        print("Flushing and closing Kafka producer...")
+        producer.flush()
+        producer.close()
