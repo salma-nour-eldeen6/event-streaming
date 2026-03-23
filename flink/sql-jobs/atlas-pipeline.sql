@@ -93,10 +93,18 @@ SELECT
     prb_id,
     `timestamp` AS event_timestamp,
     `type` AS measurement_type,
-    CASE
-        WHEN sent > 0 THEN (sent - rcvd) * 1.0 / sent
-        ELSE 0
-    END AS packet_loss,
+
+    CAST(
+        CASE
+            WHEN sent > 0 THEN (sent - rcvd) * 1.0 / sent
+            ELSE 0
+        END AS DOUBLE
+    ) AS packet_loss,
+
     DATE_FORMAT(TO_TIMESTAMP_LTZ(`timestamp`, 3), 'yyyy-MM-dd') AS event_date,
-    HOUR(TO_TIMESTAMP_LTZ(`timestamp`, 3)) AS event_hour
+
+    CAST(
+        HOUR(TO_TIMESTAMP_LTZ(`timestamp`, 3))
+        AS INT
+    ) AS event_hour
 FROM atlas_source;
