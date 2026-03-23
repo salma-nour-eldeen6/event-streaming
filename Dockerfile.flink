@@ -1,0 +1,24 @@
+FROM flink:1.18.1-scala_2.12-java11
+
+USER root
+
+RUN mkdir -p /opt/flink/lib
+
+RUN curl -L -o /opt/flink/lib/flink-sql-connector-kafka-3.1.0-1.18.jar \
+    https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.1.0-1.18/flink-sql-connector-kafka-3.1.0-1.18.jar && \
+    curl -L -o /opt/flink/lib/iceberg-flink-runtime-1.18-1.5.0.jar \
+    https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-flink-runtime-1.18/1.5.0/iceberg-flink-runtime-1.18-1.5.0.jar && \
+    curl -L -o /opt/flink/lib/flink-json-1.18.1.jar \
+    https://repo1.maven.org/maven2/org/apache/flink/flink-json/1.18.1/flink-json-1.18.1.jar && \
+    curl -L -o /opt/flink/lib/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar \
+    https://repo1.maven.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-10.0/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar && \
+    curl -L -o /opt/flink/lib/hadoop-common-2.8.3.jar \
+    https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-common/2.8.3/hadoop-common-2.8.3.jar && \
+    curl -L -o /opt/flink/lib/hadoop-client-2.8.3.jar \
+    https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-client/2.8.3/hadoop-client-2.8.3.jar && \
+    curl -L -o /opt/flink/lib/hadoop-hdfs-2.8.3.jar \
+    https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-hdfs/2.8.3/hadoop-hdfs-2.8.3.jar && \
+    curl -L -o /opt/flink/lib/bundle-2.20.18.jar \
+    https://repo1.maven.org/maven2/software/amazon/awssdk/bundle/2.20.18/bundle-2.20.18.jar
+
+USER flink

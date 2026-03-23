@@ -1,0 +1,20 @@
+# Python virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment files
+.env
+
+# Logs
+logs/
+
+# OS / editor files
+.DS_Store
+.vscode/
+.idea/
+*.jar
+flink/lib/*.jar
+flink/flink/lib/*.jar

@@ -8,11 +8,9 @@ networks:
         - subnet: 172.23.0.0/24
 
 services:
-
-# ============================================
-# Postgres
-# ============================================
-
+  # ============================================
+  # Postgres
+  # ============================================
   postgres:
     image: postgres:13
     container_name: postgres-airflow
@@ -27,17 +25,16 @@ services:
     ports:
       - "${POSTGRES_PORT}:${POSTGRES_PORT}"
     healthcheck:
-      test: ["CMD","pg_isready","-U","${POSTGRES_USER}"]
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
       interval: 10s
       retries: 5
       start_period: 5s
     networks:
       - data-pipeline
 
-# ============================================
-# Airflow
-# ============================================
-
+  # ============================================
+  # Airflow
+  # ============================================
   airflow-webserver:
     image: apache/airflow:2.7.3-python3.10
     container_name: airflow-webserver
@@ -50,8 +47,8 @@ services:
       AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR}
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
       _PIP_ADDITIONAL_REQUIREMENTS: "kafka-python websockets python-dotenv prometheus-client"
       KAFKA_BROKER: kafka:${KAFKA_INTERNAL_PORT}
     env_file:
@@ -95,8 +92,8 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR}
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
-      _AIRFLOW_DB_UPGRADE: 'true'
-      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_DB_UPGRADE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
       _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USER}
       _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
       _AIRFLOW_WWW_USER_FIRSTNAME: ${AIRFLOW_ADMIN_FIRSTNAME}
@@ -116,10 +113,9 @@ services:
     networks:
       - data-pipeline
 
-# ============================================
-# Zookeeper
-# ============================================
-
+  # ============================================
+  # Zookeeper
+  # ============================================
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper
@@ -131,10 +127,9 @@ services:
     networks:
       - data-pipeline
 
-# ============================================
-# Kafka
-# ============================================
-
+  # ============================================
+  # Kafka
+  # ============================================
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
@@ -157,10 +152,6 @@ services:
     networks:
       - data-pipeline
 
-# ============================================
-# Kafka UI
-# ============================================
-
   kafka-ui:
     image: provectuslabs/kafka-ui
     container_name: kafka-ui
@@ -175,38 +166,64 @@ services:
     networks:
       - data-pipeline
 
-# ============================================
-# Flink
-# ============================================
-
+  # ============================================
+  # Flink
+  # ============================================
   flink-jobmanager:
-    image: flink:1.18
+    image: flink:1.18.1-scala_2.12-java11
     container_name: flink-jobmanager
-    mem_limit: ${FLINK_JOBMANAGER_RAM}
-    command: jobmanager
     ports:
-      - "${FLINK_UI_PORT}:8081"
+      - "18081:18081"
+    command: jobmanager
     environment:
-      JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        rest.port: 18081
+        state.backend: rocksdb
+        state.backend.incremental: true
+        AWS_REGION=us-east-1
+        AWS_ACCESS_KEY_ID=admin
+        AWS_SECRET_ACCESS_KEY=password
+        AWS_DEFAULT_REGION=us-east-1
+        S3_ENDPOINT=http://minio:9000
+        S3_PATH_STYLE_ACCESS=true
+        JAVA_TOOL_OPTIONS=-Daws.accessKeyId=admin -Daws.secretKey=password
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18081"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - data-pipeline
 
   flink-taskmanager:
-    image: flink:1.18
+    image: flink:1.18.1-scala_2.12-java11
     container_name: flink-taskmanager
-    mem_limit: ${FLINK_TASKMANAGER_RAM}
     depends_on:
       - flink-jobmanager
     command: taskmanager
     environment:
-      JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        rest.port: 18081
+        taskmanager.numberOfTaskSlots: 2
+        state.backend: rocksdb
+        state.backend.incremental: true
+        AWS_REGION=us-east-1
+        AWS_ACCESS_KEY_ID=admin
+        AWS_SECRET_ACCESS_KEY=password
+        AWS_DEFAULT_REGION=us-east-1
+        S3_ENDPOINT=http://minio:9000
+        S3_PATH_STYLE_ACCESS=true
+        JAVA_TOOL_OPTIONS=-Daws.accessKeyId=admin -Daws.secretKey=password
     networks:
       - data-pipeline
 
-# ============================================
-# MinIO
-# ============================================
-
+  # ============================================
+  # MinIO
+  # ============================================
   minio:
     image: minio/minio
     container_name: minio
@@ -223,9 +240,26 @@ services:
     networks:
       - data-pipeline
 
-# ============================================
-# Iceberg REST
-# ============================================
+  mc:
+    depends_on:
+      - minio
+    image: minio/mc
+    container_name: mc
+    networks:
+      - data-pipeline
+    environment:
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - AWS_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
+    entrypoint: >
+      /bin/sh -c "
+      until (/usr/bin/mc config host add minio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}) do echo '...waiting...' && sleep 1; done;
+      /usr/bin/mc rm -r --force minio/warehouse || true;
+      /usr/bin/mc mb minio/warehouse;
+      /usr/bin/mc policy set public minio/warehouse;
+      tail -f /dev/null
+      "
 
   iceberg-rest:
     image: tabulario/iceberg-rest
@@ -234,20 +268,56 @@ services:
     ports:
       - "${ICEBERG_REST_PORT}:8181"
     environment:
-      CATALOG_WAREHOUSE: s3a://warehouse/
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
-      S3_ENDPOINT: http://minio:9000
-      S3_PATH_STYLE_ACCESS: "true"
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - AWS_REGION=us-east-1
+      - CATALOG_WAREHOUSE=s3://warehouse/
+      - CATALOG_IO__IMPL=org.apache.iceberg.aws.s3.S3FileIO
+      - CATALOG_S3_ENDPOINT=http://minio:9000
+      - CATALOG_S3_PATH__STYLE__ACCESS=true
     depends_on:
       - minio
+      - mc
     networks:
       - data-pipeline
 
-# ============================================
-# dbt
-# ============================================
+  sql-client:
+    container_name: sql-client
+    depends_on:
+      flink-jobmanager:
+        condition: service_healthy
+      flink-taskmanager:
+        condition: service_started
+      iceberg-rest:
+        condition: service_started
+      kafka:
+        condition: service_started
+    build:
+      context: .
+      dockerfile: flink/sql-client/Dockerfile
+    environment:
+      FLINK_JOBMANAGER_HOST: flink-jobmanager
+      S3_ENDPOINT: http://minio:9000
+      S3_PATH_STYLE_ACCESS: "true"
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: password
+      AWS_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+      JAVA_TOOL_OPTIONS: -Daws.accessKeyId=admin -Daws.secretKey=password
+    volumes:
+      - ./flink/sql-client/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
+      - ./flink/sql-jobs/atlas-pipeline.sql:/opt/flink/atlas-pipeline.sql
+    command: >
+      /bin/sh -c "
+      /opt/flink/bin/sql-client.sh -f /opt/flink/atlas-pipeline.sql;
+      tail -f /dev/null
+      "
+    networks:
+      - data-pipeline
 
+  # ============================================
+  # dbt
+  # ============================================
   dbt:
     image: ghcr.io/dbt-labs/dbt-core
     container_name: dbt
@@ -258,10 +328,9 @@ services:
     networks:
       - data-pipeline
 
-# ============================================
-# Monitoring
-# ============================================
-
+  # ============================================
+  # Monitoring
+  # ============================================
   prometheus:
     image: prom/prometheus
     container_name: prometheus
