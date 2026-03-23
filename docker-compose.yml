@@ -178,71 +178,57 @@ services:
   # Flink
   # ============================================
 
-  flink-jobmanager:
-  build:
-    context: .
-    dockerfile: Dockerfile.flink
-  container_name: flink-jobmanager
-  mem_limit: ${FLINK_JOBMANAGER_RAM}
-  command: jobmanager
-  ports:
-    - "18081:18081"
+flink-jobmanager:
+image: flink:1.18.1-scala_2.12-java11
+container_name: flink-jobmanager
+ports:
+  - "18081:18081"
+command: jobmanager
+environment:
+  - |
+    FLINK_PROPERTIES=
+    jobmanager.rpc.address: flink-jobmanager
+    rest.port: 18081
+    state.backend: rocksdb
+    state.backend.incremental: true
+    AWS_REGION=us-east-1
+    AWS_ACCESS_KEY_ID=admin
+    AWS_SECRET_ACCESS_KEY=password
+    AWS_DEFAULT_REGION=us-east-1
+    S3_ENDPOINT=http://minio:9000
+    S3_PATH_STYLE_ACCESS=true
+    JAVA_TOOL_OPTIONS=-Daws.accessKeyId=admin -Daws.secretKey=password
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost:18081"]
+  interval: 10s
+  timeout: 5s
+  retries: 10
+networks:
+  - data-pipeline
+
+flink-taskmanager:
+  image: flink:1.18.1-scala_2.12-java11
+  container_name: flink-taskmanager
+  depends_on:
+    - flink-jobmanager
+  command: taskmanager
   environment:
     - |
       FLINK_PROPERTIES=
       jobmanager.rpc.address: flink-jobmanager
       rest.port: 18081
+      taskmanager.numberOfTaskSlots: 2
       state.backend: rocksdb
       state.backend.incremental: true
       AWS_REGION=us-east-1
-      AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
-      AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      AWS_ACCESS_KEY_ID=admin
+      AWS_SECRET_ACCESS_KEY=password
       AWS_DEFAULT_REGION=us-east-1
       S3_ENDPOINT=http://minio:9000
       S3_PATH_STYLE_ACCESS=true
-      JAVA_TOOL_OPTIONS=-Daws.accessKeyId=${MINIO_ROOT_USER} -Daws.secretKey=${MINIO_ROOT_PASSWORD}
-  healthcheck:
-    test: ["CMD", "curl", "-f", "http://localhost:18081"]
-    interval: 10s
-    timeout: 5s
-    retries: 10
-  volumes:
-    - ./flink:/opt/flink
-  depends_on:
-    - kafka
-    - minio
-    - iceberg-rest
+      JAVA_TOOL_OPTIONS=-Daws.accessKeyId=admin -Daws.secretKey=password
   networks:
     - data-pipeline
-
-  flink-taskmanager:
-    build:
-      context: .
-      dockerfile: Dockerfile.flink
-    container_name: flink-taskmanager
-    mem_limit: ${FLINK_TASKMANAGER_RAM}
-    depends_on:
-      - flink-jobmanager
-    command: taskmanager
-    environment:
-      - |
-        FLINK_PROPERTIES=
-        jobmanager.rpc.address: flink-jobmanager
-        rest.port: 18081
-        taskmanager.numberOfTaskSlots: 2
-        state.backend: rocksdb
-        state.backend.incremental: true
-        AWS_REGION=us-east-1
-        AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
-        AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
-        AWS_DEFAULT_REGION=us-east-1
-        S3_ENDPOINT=http://minio:9000
-        S3_PATH_STYLE_ACCESS=true
-        JAVA_TOOL_OPTIONS=-Daws.accessKeyId=${MINIO_ROOT_USER} -Daws.secretKey=${MINIO_ROOT_PASSWORD}
-    volumes:
-      - ./flink:/opt/flink
-    networks:
-      - data-pipeline
 
   # ============================================
   # MinIO
@@ -313,39 +299,39 @@ services:
   # ============================================
   # sql client service 
   # ============================================
-    sql-client:
-    container_name: sql-client
-    depends_on:
-      flink-jobmanager:
-        condition: service_healthy
-      flink-taskmanager:
-        condition: service_started
-      iceberg-rest:
-        condition: service_started
-      kafka:
-        condition: service_started
-    build:
-      context: .
-      dockerfile: Dockerfile.flink
-    environment:
-      FLINK_JOBMANAGER_HOST: flink-jobmanager
-      S3_ENDPOINT: http://minio:9000
-      S3_PATH_STYLE_ACCESS: "true"
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
-      AWS_REGION: us-east-1
-      AWS_DEFAULT_REGION: us-east-1
-      JAVA_TOOL_OPTIONS: -Daws.accessKeyId=${MINIO_ROOT_USER} -Daws.secretKey=${MINIO_ROOT_PASSWORD}
-    volumes:
-      - ./flink/sql-client/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
-      - ./flink/sql-jobs/atlas-pipeline.sql:/opt/flink/atlas-pipeline.sql
-    command: >
-      /bin/sh -c "
-      /opt/flink/bin/sql-client.sh -f /opt/flink/atlas-pipeline.sql;
-      tail -f /dev/null
-      "
-    networks:
-      - data-pipeline
+  sql-client:
+  container_name: sql-client
+  depends_on:
+    flink-jobmanager:
+      condition: service_healthy
+    flink-taskmanager:
+      condition: service_started
+    iceberg-rest:
+      condition: service_started
+    kafka:
+      condition: service_started
+  build:
+    context: .
+    dockerfile: flink/sql-client/Dockerfile
+  environment:
+    FLINK_JOBMANAGER_HOST: flink-jobmanager
+    S3_ENDPOINT: http://minio:9000
+    S3_PATH_STYLE_ACCESS: "true"
+    AWS_ACCESS_KEY_ID: admin
+    AWS_SECRET_ACCESS_KEY: password
+    AWS_REGION: us-east-1
+    AWS_DEFAULT_REGION: us-east-1
+    JAVA_TOOL_OPTIONS: -Daws.accessKeyId=admin -Daws.secretKey=password
+  volumes:
+    - ./flink/sql-client/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
+    - ./flink/sql-jobs/atlas-pipeline.sql:/opt/flink/atlas-pipeline.sql
+  command: >
+    /bin/sh -c "
+    /opt/flink/bin/sql-client.sh -f /opt/flink/atlas-pipeline.sql;
+    tail -f /dev/null
+    "
+  networks:
+    - data-pipeline
 
     
   # ============================================
