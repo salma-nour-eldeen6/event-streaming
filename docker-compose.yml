@@ -309,6 +309,45 @@ services:
       - mc
     networks:
       - data-pipeline
+
+  # ============================================
+  # sql client service 
+  # ============================================
+    sql-client:
+    container_name: sql-client
+    depends_on:
+      flink-jobmanager:
+        condition: service_healthy
+      flink-taskmanager:
+        condition: service_started
+      iceberg-rest:
+        condition: service_started
+      kafka:
+        condition: service_started
+    build:
+      context: .
+      dockerfile: Dockerfile.flink
+    environment:
+      FLINK_JOBMANAGER_HOST: flink-jobmanager
+      S3_ENDPOINT: http://minio:9000
+      S3_PATH_STYLE_ACCESS: "true"
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+      JAVA_TOOL_OPTIONS: -Daws.accessKeyId=${MINIO_ROOT_USER} -Daws.secretKey=${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ./flink/sql-client/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
+      - ./flink/sql-jobs/atlas-pipeline.sql:/opt/flink/atlas-pipeline.sql
+    command: >
+      /bin/sh -c "
+      /opt/flink/bin/sql-client.sh -f /opt/flink/atlas-pipeline.sql;
+      tail -f /dev/null
+      "
+    networks:
+      - data-pipeline
+
+    
   # ============================================
   # dbt
   # ============================================
