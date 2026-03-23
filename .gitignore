@@ -15,3 +15,6 @@ logs/
 .DS_Store
 .vscode/
 .idea/
+*.jar
+flink/lib/*.jar
+flink/flink/lib/*.jar
