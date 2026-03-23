@@ -11,7 +11,6 @@ services:
   # ============================================
   # Postgres
   # ============================================
-
   postgres:
     image: postgres:13
     container_name: postgres-airflow
@@ -36,7 +35,6 @@ services:
   # ============================================
   # Airflow
   # ============================================
-
   airflow-webserver:
     image: apache/airflow:2.7.3-python3.10
     container_name: airflow-webserver
@@ -118,7 +116,6 @@ services:
   # ============================================
   # Zookeeper
   # ============================================
-
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper
@@ -133,7 +130,6 @@ services:
   # ============================================
   # Kafka
   # ============================================
-
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
@@ -156,10 +152,6 @@ services:
     networks:
       - data-pipeline
 
-  # ============================================
-  # Kafka UI
-  # ============================================
-
   kafka-ui:
     image: provectuslabs/kafka-ui
     container_name: kafka-ui
@@ -177,63 +169,61 @@ services:
   # ============================================
   # Flink
   # ============================================
+  flink-jobmanager:
+    image: flink:1.18.1-scala_2.12-java11
+    container_name: flink-jobmanager
+    ports:
+      - "18081:18081"
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        rest.port: 18081
+        state.backend: rocksdb
+        state.backend.incremental: true
+        AWS_REGION=us-east-1
+        AWS_ACCESS_KEY_ID=admin
+        AWS_SECRET_ACCESS_KEY=password
+        AWS_DEFAULT_REGION=us-east-1
+        S3_ENDPOINT=http://minio:9000
+        S3_PATH_STYLE_ACCESS=true
+        JAVA_TOOL_OPTIONS=-Daws.accessKeyId=admin -Daws.secretKey=password
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18081"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - data-pipeline
 
-flink-jobmanager:
-image: flink:1.18.1-scala_2.12-java11
-container_name: flink-jobmanager
-ports:
-  - "18081:18081"
-command: jobmanager
-environment:
-  - |
-    FLINK_PROPERTIES=
-    jobmanager.rpc.address: flink-jobmanager
-    rest.port: 18081
-    state.backend: rocksdb
-    state.backend.incremental: true
-    AWS_REGION=us-east-1
-    AWS_ACCESS_KEY_ID=admin
-    AWS_SECRET_ACCESS_KEY=password
-    AWS_DEFAULT_REGION=us-east-1
-    S3_ENDPOINT=http://minio:9000
-    S3_PATH_STYLE_ACCESS=true
-    JAVA_TOOL_OPTIONS=-Daws.accessKeyId=admin -Daws.secretKey=password
-healthcheck:
-  test: ["CMD", "curl", "-f", "http://localhost:18081"]
-  interval: 10s
-  timeout: 5s
-  retries: 10
-networks:
-  - data-pipeline
-
-flink-taskmanager:
-  image: flink:1.18.1-scala_2.12-java11
-  container_name: flink-taskmanager
-  depends_on:
-    - flink-jobmanager
-  command: taskmanager
-  environment:
-    - |
-      FLINK_PROPERTIES=
-      jobmanager.rpc.address: flink-jobmanager
-      rest.port: 18081
-      taskmanager.numberOfTaskSlots: 2
-      state.backend: rocksdb
-      state.backend.incremental: true
-      AWS_REGION=us-east-1
-      AWS_ACCESS_KEY_ID=admin
-      AWS_SECRET_ACCESS_KEY=password
-      AWS_DEFAULT_REGION=us-east-1
-      S3_ENDPOINT=http://minio:9000
-      S3_PATH_STYLE_ACCESS=true
-      JAVA_TOOL_OPTIONS=-Daws.accessKeyId=admin -Daws.secretKey=password
-  networks:
-    - data-pipeline
+  flink-taskmanager:
+    image: flink:1.18.1-scala_2.12-java11
+    container_name: flink-taskmanager
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        rest.port: 18081
+        taskmanager.numberOfTaskSlots: 2
+        state.backend: rocksdb
+        state.backend.incremental: true
+        AWS_REGION=us-east-1
+        AWS_ACCESS_KEY_ID=admin
+        AWS_SECRET_ACCESS_KEY=password
+        AWS_DEFAULT_REGION=us-east-1
+        S3_ENDPOINT=http://minio:9000
+        S3_PATH_STYLE_ACCESS=true
+        JAVA_TOOL_OPTIONS=-Daws.accessKeyId=admin -Daws.secretKey=password
+    networks:
+      - data-pipeline
 
   # ============================================
   # MinIO
   # ============================================
-
   minio:
     image: minio/minio
     container_name: minio
@@ -250,10 +240,7 @@ flink-taskmanager:
     networks:
       - data-pipeline
 
-  # ============================================
-  # MC service to automatically make buckets 
-  # ============================================ 
-    mc:
+  mc:
     depends_on:
       - minio
     image: minio/mc
@@ -272,11 +259,9 @@ flink-taskmanager:
       /usr/bin/mc mb minio/warehouse;
       /usr/bin/mc policy set public minio/warehouse;
       tail -f /dev/null
-      " 
-  # ============================================
-  # Iceberg REST
-  # ============================================
-    iceberg-rest:
+      "
+
+  iceberg-rest:
     image: tabulario/iceberg-rest
     container_name: iceberg-rest
     mem_limit: ${ICEBERG_RAM}
@@ -296,48 +281,43 @@ flink-taskmanager:
     networks:
       - data-pipeline
 
-  # ============================================
-  # sql client service 
-  # ============================================
   sql-client:
-  container_name: sql-client
-  depends_on:
-    flink-jobmanager:
-      condition: service_healthy
-    flink-taskmanager:
-      condition: service_started
-    iceberg-rest:
-      condition: service_started
-    kafka:
-      condition: service_started
-  build:
-    context: .
-    dockerfile: flink/sql-client/Dockerfile
-  environment:
-    FLINK_JOBMANAGER_HOST: flink-jobmanager
-    S3_ENDPOINT: http://minio:9000
-    S3_PATH_STYLE_ACCESS: "true"
-    AWS_ACCESS_KEY_ID: admin
-    AWS_SECRET_ACCESS_KEY: password
-    AWS_REGION: us-east-1
-    AWS_DEFAULT_REGION: us-east-1
-    JAVA_TOOL_OPTIONS: -Daws.accessKeyId=admin -Daws.secretKey=password
-  volumes:
-    - ./flink/sql-client/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
-    - ./flink/sql-jobs/atlas-pipeline.sql:/opt/flink/atlas-pipeline.sql
-  command: >
-    /bin/sh -c "
-    /opt/flink/bin/sql-client.sh -f /opt/flink/atlas-pipeline.sql;
-    tail -f /dev/null
-    "
-  networks:
-    - data-pipeline
+    container_name: sql-client
+    depends_on:
+      flink-jobmanager:
+        condition: service_healthy
+      flink-taskmanager:
+        condition: service_started
+      iceberg-rest:
+        condition: service_started
+      kafka:
+        condition: service_started
+    build:
+      context: .
+      dockerfile: flink/sql-client/Dockerfile
+    environment:
+      FLINK_JOBMANAGER_HOST: flink-jobmanager
+      S3_ENDPOINT: http://minio:9000
+      S3_PATH_STYLE_ACCESS: "true"
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: password
+      AWS_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+      JAVA_TOOL_OPTIONS: -Daws.accessKeyId=admin -Daws.secretKey=password
+    volumes:
+      - ./flink/sql-client/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
+      - ./flink/sql-jobs/atlas-pipeline.sql:/opt/flink/atlas-pipeline.sql
+    command: >
+      /bin/sh -c "
+      /opt/flink/bin/sql-client.sh -f /opt/flink/atlas-pipeline.sql;
+      tail -f /dev/null
+      "
+    networks:
+      - data-pipeline
 
-    
   # ============================================
   # dbt
   # ============================================
-
   dbt:
     image: ghcr.io/dbt-labs/dbt-core
     container_name: dbt
@@ -351,7 +331,6 @@ flink-taskmanager:
   # ============================================
   # Monitoring
   # ============================================
-
   prometheus:
     image: prom/prometheus
     container_name: prometheus
