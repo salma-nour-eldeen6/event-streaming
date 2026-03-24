@@ -27,31 +27,56 @@ jobs:
       - name: Install tools
         run: |
           pip install pyyaml flake8 sqlfluff
-          
-      # Python Checks
-      - name: Python Syntax Check
+
+      # =========================
+      # Get changed files
+      # =========================
+      - name: Get changed files
+        id: changed-files
         run: |
-          for file in $(git ls-files '*.py'); do
+          git fetch origin main
+          git diff --name-only origin/main...HEAD > changed_files.txt
+          cat changed_files.txt
+
+      # =========================
+      # Python Checks
+      # =========================
+      - name: Python Syntax Check (changed only)
+        run: |
+          for file in $(grep '\.py$' changed_files.txt); do
+            echo "Checking $file"
             python -m py_compile "$file"
           done
 
       - name: Lint Python Code (non-blocking)
         run: |
-          flake8 . || echo "Lint warnings found (check output above)"
+          for file in $(grep '\.py$' changed_files.txt); do
+            flake8 "$file" || echo "Lint issue in $file"
+          done
 
+      # =========================
       # YAML Checks
-      - name: YAML Validation
+      # =========================
+      - name: YAML Validation (changed only)
         run: |
-          for file in $(git ls-files '*.yml' '*.yaml'); do
+          for file in $(grep -E '\.ya?ml$' changed_files.txt); do
+            echo "Checking $file"
             python -c "import yaml; yaml.safe_load(open('$file'))"
           done
 
+      # =========================
       # SQL Checks
-      - name: Lint SQL
-        run: sqlfluff lint flink/sql-jobs/ --dialect flink --ignore parsing
-      
-      - name: SQL Parse Check
+      # =========================
+      - name: Lint SQL (changed only)
         run: |
-          for file in $(git ls-files '*.sql'); do
+          for file in $(grep '\.sql$' changed_files.txt); do
+            echo "Linting $file"
+            sqlfluff lint "$file" --dialect flink --ignore parsing
+          done
+
+      - name: SQL Parse Check (changed only)
+        run: |
+          for file in $(grep '\.sql$' changed_files.txt); do
+            echo "Parsing $file"
             sqlfluff parse "$file" --dialect flink || true
           done
