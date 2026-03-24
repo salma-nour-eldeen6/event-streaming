@@ -47,9 +47,8 @@ jobs:
           done
 
       # SQL Checks
-      - name: SQL Lint (Flink / ANSI)
-        run: |
-          sqlfluff lint flink/sql-jobs/ --dialect ansi
+      - name: Lint SQL
+        run: sqlfluff lint flink/sql-jobs/ --dialect ansi --ignore parsing
 
       - name: SQL Parse Check
         run: |
