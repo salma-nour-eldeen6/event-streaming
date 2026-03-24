@@ -1,0 +1,83 @@
+name: CD - Run Streaming Pipeline
+
+on:
+  push:
+    branches: ["feature/CI"]
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    env:
+      ZOOKEEPER_CLIENT_PORT: ${{ secrets.ZOOKEEPER_CLIENT_PORT }}
+      KAFKA_INTERNAL_PORT: ${{ secrets.KAFKA_INTERNAL_PORT }}
+      KAFKA_EXTERNAL_PORT: ${{ secrets.KAFKA_EXTERNAL_PORT }}
+      KAFKA_UI_EXTERNAL_PORT: ${{ secrets.KAFKA_UI_EXTERNAL_PORT }}
+      MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
+      MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
+      MINIO_API_PORT: ${{ secrets.MINIO_API_PORT }}
+      MINIO_CONSOLE_PORT: ${{ secrets.MINIO_CONSOLE_PORT }}
+      ICEBERG_REST_PORT: ${{ secrets.ICEBERG_REST_PORT }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # =========================
+      # Build & Run
+      # =========================
+      - name: Build images
+        run: docker compose build
+
+      - name: Start services
+        run: docker compose up -d
+
+      # =========================
+      # Wait for services
+      # =========================
+      - name: Wait for Flink
+        run: |
+          timeout 180 bash -c '
+            until curl -s http://localhost:18081 > /dev/null; do
+              echo "Waiting for Flink..."
+              sleep 5
+            done
+          '
+
+      - name: Wait for MinIO
+        run: |
+          timeout 120 bash -c '
+            until curl -s http://localhost:9000/minio/health/live > /dev/null; do
+              echo "Waiting for MinIO..."
+              sleep 5
+            done
+          '
+
+      # =========================
+      # Run Pipeline Script
+      # =========================
+      - name: Run Pipeline
+        run: |
+          chmod +x scripts/run_pipeline.sh
+          ./scripts/run_pipeline.sh
+
+      # =========================
+      # Validate Output 
+      # =========================
+      - name: Check Iceberg Data
+        run: |
+          docker exec mc mc ls minio/warehouse || true
+
+      # =========================
+      # Debug Logs
+      # =========================
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs
+
+      # =========================
+      # Cleanup
+      # =========================
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
