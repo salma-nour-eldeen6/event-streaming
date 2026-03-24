@@ -48,10 +48,10 @@ jobs:
 
       # SQL Checks
       - name: Lint SQL
-        run: sqlfluff lint flink/sql-jobs/ --dialect ansi --ignore parsing
-
+        run: sqlfluff lint flink/sql-jobs/ --dialect flink --ignore parsing
+      
       - name: SQL Parse Check
         run: |
           for file in $(git ls-files '*.sql'); do
-            sqlfluff parse "$file" > /dev/null
+            sqlfluff parse "$file" --dialect flink > /dev/null
           done
