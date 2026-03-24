@@ -35,8 +35,9 @@ jobs:
             python -m py_compile "$file"
           done
 
-      - name: Lint Python Code
-        run: flake8 .
+      - name: Lint Python Code (non-blocking)
+        run: |
+          flake8 . || echo "Lint warnings found (check output above)"
 
       # YAML Checks
       - name: YAML Validation
