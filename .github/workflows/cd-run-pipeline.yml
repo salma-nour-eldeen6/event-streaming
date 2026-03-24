@@ -12,23 +12,24 @@ jobs:
       # =========================
       # Zookeeper & Kafka
       # =========================
-      ZOOKEEPER_CLIENT_PORT: ${{ secrets.ZOOKEEPER_CLIENT_PORT }}
-      ZOOKEEPER_RAM: ${{ secrets.ZOOKEEPER_RAM }}
-      KAFKA_INTERNAL_PORT: ${{ secrets.KAFKA_INTERNAL_PORT }}
-      KAFKA_EXTERNAL_PORT: ${{ secrets.KAFKA_EXTERNAL_PORT }}
-      KAFKA_UI_EXTERNAL_PORT: ${{ secrets.KAFKA_UI_EXTERNAL_PORT }}
-      KAFKA_RAM: ${{ secrets.KAFKA_RAM }}
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_RAM: 1.5g
+      KAFKA_INTERNAL_PORT: 29092
+      KAFKA_EXTERNAL_PORT: 9092
+      KAFKA_UI_EXTERNAL_PORT: 8088
+      KAFKA_RAM: 2.5g
+      KAFKA_UI_RAM: 300m
 
       # =========================
       # MinIO & Iceberg
       # =========================
       MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
       MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
-      MINIO_API_PORT: ${{ secrets.MINIO_API_PORT }}
-      MINIO_CONSOLE_PORT: ${{ secrets.MINIO_CONSOLE_PORT }}
-      MINIO_RAM: ${{ secrets.MINIO_RAM }}
-      ICEBERG_REST_PORT: ${{ secrets.ICEBERG_REST_PORT }}
-      ICEBERG_RAM: ${{ secrets.ICEBERG_RAM }}
+      MINIO_API_PORT: 9000
+      MINIO_CONSOLE_PORT: 9001
+      MINIO_RAM: 400m
+      ICEBERG_REST_PORT: 8181
+      ICEBERG_RAM: 300m
 
       # =========================
       # Postgres
@@ -37,7 +38,7 @@ jobs:
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
       POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
       POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
-      POSTGRES_RAM: ${{ secrets.POSTGRES_RAM }}
+      POSTGRES_RAM: 512m
 
       # =========================
       # Airflow
@@ -47,15 +48,26 @@ jobs:
       AIRFLOW_ADMIN_FIRSTNAME: ${{ secrets.AIRFLOW_ADMIN_FIRSTNAME }}
       AIRFLOW_ADMIN_LASTNAME: ${{ secrets.AIRFLOW_ADMIN_LASTNAME }}
       AIRFLOW_ADMIN_EMAIL: ${{ secrets.AIRFLOW_ADMIN_EMAIL }}
-      AIRFLOW_EXECUTOR: ${{ secrets.AIRFLOW_EXECUTOR }}
+      AIRFLOW_EXECUTOR: LocalExecutor
       AIRFLOW_FERNET_KEY: ${{ secrets.AIRFLOW_FERNET_KEY }}
       AIRFLOW_SECRET_KEY: ${{ secrets.AIRFLOW_SECRET_KEY }}
+      AIRFLOW_WEBSERVER_RAM: 600m
+      AIRFLOW_SCHEDULER_RAM: 400m
+
+      # =========================
+      # Flink
+      # =========================
+      FLINK_JOBMANAGER_RAM: 600m
+      FLINK_TASKMANAGER_RAM: 800m
+
+      # =========================
+      # DBT
+      DBT_RAM: 200m
 
       # =========================
       # Monitoring
-      # =========================
-      GRAFANA_RAM: ${{ secrets.GRAFANA_RAM }}
-      PROMETHEUS_RAM: ${{ secrets.PROMETHEUS_RAM }}
+      GRAFANA_RAM: 200m
+      PROMETHEUS_RAM: 200m
 
     steps:
       - name: Checkout
@@ -72,7 +84,6 @@ jobs:
 
       # =========================
       # Wait for services
-      # =========================
       - name: Wait for Flink
         run: |
           timeout 180 bash -c '
@@ -93,7 +104,6 @@ jobs:
 
       # =========================
       # Run Pipeline Script
-      # =========================
       - name: Run Pipeline
         run: |
           chmod +x scripts/run_pipeline.sh
@@ -101,21 +111,18 @@ jobs:
 
       # =========================
       # Validate Output 
-      # =========================
       - name: Check Iceberg Data
         run: |
           docker exec mc mc ls minio/warehouse || true
 
       # =========================
       # Debug Logs
-      # =========================
       - name: Dump logs on failure
         if: failure()
         run: docker compose logs
 
       # =========================
       # Cleanup
-      # =========================
       - name: Cleanup
         if: always()
         run: docker compose down -v
