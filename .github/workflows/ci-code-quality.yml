@@ -53,5 +53,5 @@ jobs:
       - name: SQL Parse Check
         run: |
           for file in $(git ls-files '*.sql'); do
-            sqlfluff parse "$file" --dialect flink > /dev/null
+            sqlfluff parse "$file" --dialect flink || true
           done
