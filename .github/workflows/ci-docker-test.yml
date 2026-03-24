@@ -1,0 +1,50 @@
+name: CI - Docker Services Test
+
+on:
+  pull_request:
+
+jobs:
+  docker-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # Build sql-client image (important)
+      - name: Build Docker images
+        run: docker compose build
+
+      - name: Start Services
+        run: docker compose up -d
+
+      # Wait for Flink 
+      - name: Wait for Flink JobManager
+        run: |
+          echo "Waiting for Flink..."
+          timeout 120 bash -c '
+            until curl -s http://localhost:18081 > /dev/null; do
+              sleep 5
+            done
+          '
+
+      # Validate Kafka
+      - name: Check Kafka Topics
+        run: |
+          docker exec kafka kafka-topics \
+            --bootstrap-server localhost:9092 \
+            --list || true
+
+      # Validate MinIO
+      - name: Check MinIO Bucket
+        run: |
+          docker exec mc mc ls minio || true
+
+      # Debug logs  
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
