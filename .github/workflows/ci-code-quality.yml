@@ -25,19 +25,33 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
 
       - name: Install tools
-        run: pip install pyyaml flake8
-
+        run: |
+          pip install pyyaml flake8 sqlfluff
+          
+      # Python Checks
       - name: Python Syntax Check
         run: |
           for file in $(git ls-files '*.py'); do
             python -m py_compile "$file"
           done
 
-      - name: Lint Code
+      - name: Lint Python Code
         run: flake8 .
 
+      # YAML Checks
       - name: YAML Validation
         run: |
           for file in $(git ls-files '*.yml' '*.yaml'); do
             python -c "import yaml; yaml.safe_load(open('$file'))"
+          done
+
+      # SQL Checks
+      - name: SQL Lint (Flink / ANSI)
+        run: |
+          sqlfluff lint flink/sql-jobs/ --dialect ansi
+
+      - name: SQL Parse Check
+        run: |
+          for file in $(git ls-files '*.sql'); do
+            sqlfluff parse "$file" > /dev/null
           done
