@@ -11,6 +11,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0    
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -35,7 +37,7 @@ jobs:
         id: changed-files
         run: |
           git fetch origin main
-          git diff --name-only origin/main...HEAD > changed_files.txt
+          git diff --name-only origin/main...HEAD > changed_files.txt || true
           cat changed_files.txt
 
       # =========================
@@ -43,14 +45,14 @@ jobs:
       # =========================
       - name: Python Syntax Check (changed only)
         run: |
-          for file in $(grep '\.py$' changed_files.txt); do
+          for file in $(grep '\.py$' changed_files.txt || true); do
             echo "Checking $file"
             python -m py_compile "$file"
           done
 
       - name: Lint Python Code (non-blocking)
         run: |
-          for file in $(grep '\.py$' changed_files.txt); do
+          for file in $(grep '\.py$' changed_files.txt || true); do
             flake8 "$file" || echo "Lint issue in $file"
           done
 
@@ -59,7 +61,7 @@ jobs:
       # =========================
       - name: YAML Validation (changed only)
         run: |
-          for file in $(grep -E '\.ya?ml$' changed_files.txt); do
+          for file in $(grep -E '\.ya?ml$' changed_files.txt || true); do
             echo "Checking $file"
             python -c "import yaml; yaml.safe_load(open('$file'))"
           done
@@ -69,14 +71,14 @@ jobs:
       # =========================
       - name: Lint SQL (changed only)
         run: |
-          for file in $(grep '\.sql$' changed_files.txt); do
+          for file in $(grep '\.sql$' changed_files.txt || true); do
             echo "Linting $file"
             sqlfluff lint "$file" --dialect flink --ignore parsing
           done
 
       - name: SQL Parse Check (changed only)
         run: |
-          for file in $(grep '\.sql$' changed_files.txt); do
+          for file in $(grep '\.sql$' changed_files.txt || true); do
             echo "Parsing $file"
             sqlfluff parse "$file" --dialect flink || true
           done
