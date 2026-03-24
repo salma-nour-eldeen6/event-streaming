@@ -68,6 +68,8 @@ jobs:
       # Monitoring
       GRAFANA_RAM: 200m
       PROMETHEUS_RAM: 200m
+      GRAFANA_PORT: 3000
+      PROMETHEUS_PORT: 9090
 
     steps:
       - name: Checkout
