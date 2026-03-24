@@ -9,60 +9,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # =========================
+      # Checkout repo
+      # =========================
       - name: Checkout
         uses: actions/checkout@v5
 
       # =========================
-      # Build images
+      # Build images 
       # =========================
       - name: Build images
         run: docker compose build
 
       # =========================
-      # Start services with inline env (no .env file)
+      # Start services   
       # =========================
       - name: Start services
         run: |
           docker compose up -d \
-            -e ZOOKEEPER_CLIENT_PORT=2181 \
-            -e ZOOKEEPER_RAM=1.5g \
-            -e KAFKA_INTERNAL_PORT=29092 \
-            -e KAFKA_EXTERNAL_PORT=9092 \
-            -e KAFKA_UI_EXTERNAL_PORT=8088 \
-            -e KAFKA_RAM=2.5g \
-            -e KAFKA_UI_RAM=300m \
             -e MINIO_ROOT_USER=${{ secrets.MINIO_ROOT_USER }} \
             -e MINIO_ROOT_PASSWORD=${{ secrets.MINIO_ROOT_PASSWORD }} \
-            -e MINIO_API_PORT=9000 \
-            -e MINIO_CONSOLE_PORT=9001 \
-            -e MINIO_RAM=400m \
-            -e ICEBERG_REST_PORT=8181 \
-            -e ICEBERG_RAM=300m \
             -e POSTGRES_USER=${{ secrets.POSTGRES_USER }} \
             -e POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
             -e POSTGRES_DB=${{ secrets.POSTGRES_DB }} \
-            -e POSTGRES_PORT=${{ secrets.POSTGRES_PORT }} \
-            -e POSTGRES_RAM=512m \
             -e AIRFLOW_ADMIN_USER=${{ secrets.AIRFLOW_ADMIN_USER }} \
             -e AIRFLOW_ADMIN_PASSWORD=${{ secrets.AIRFLOW_ADMIN_PASSWORD }} \
             -e AIRFLOW_ADMIN_FIRSTNAME=${{ secrets.AIRFLOW_ADMIN_FIRSTNAME }} \
             -e AIRFLOW_ADMIN_LASTNAME=${{ secrets.AIRFLOW_ADMIN_LASTNAME }} \
             -e AIRFLOW_ADMIN_EMAIL=${{ secrets.AIRFLOW_ADMIN_EMAIL }} \
-            -e AIRFLOW_EXECUTOR=LocalExecutor \
             -e AIRFLOW_FERNET_KEY=${{ secrets.AIRFLOW_FERNET_KEY }} \
-            -e AIRFLOW_SECRET_KEY=${{ secrets.AIRFLOW_SECRET_KEY }} \
-            -e AIRFLOW_WEBSERVER_RAM=600m \
-            -e AIRFLOW_SCHEDULER_RAM=400m \
-            -e FLINK_JOBMANAGER_RAM=600m \
-            -e FLINK_TASKMANAGER_RAM=800m \
-            -e DBT_RAM=200m \
-            -e GRAFANA_RAM=200m \
-            -e GRAFANA_PORT=3000 \
-            -e PROMETHEUS_RAM=200m \
-            -e PROMETHEUS_PORT=9090
+            -e AIRFLOW_SECRET_KEY=${{ secrets.AIRFLOW_SECRET_KEY }}
 
       # =========================
-      # Wait for services
+      # Wait for Flink
       # =========================
       - name: Wait for Flink
         run: |
@@ -73,6 +52,9 @@ jobs:
             done
           '
 
+      # =========================
+      # Wait for MinIO
+      # =========================
       - name: Wait for MinIO
         run: |
           timeout 120 bash -c '
@@ -91,18 +73,22 @@ jobs:
           ./scripts/run_pipeline.sh
 
       # =========================
-      # Validate Output 
+      # Validate Output
+      # =========================
       - name: Check Iceberg Data
-        run: docker exec mc mc ls minio/warehouse || true
+        run: |
+          docker exec mc mc ls minio/warehouse || true
 
       # =========================
-      # Debug Logs
+      # Debug Logs on Failure
+      # =========================
       - name: Dump logs on failure
         if: failure()
         run: docker compose logs
 
       # =========================
       # Cleanup
+      # =========================
       - name: Cleanup
         if: always()
         run: docker compose down -v
