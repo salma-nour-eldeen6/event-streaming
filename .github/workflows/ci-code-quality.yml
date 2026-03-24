@@ -1,0 +1,43 @@
+name: CI - Code Quality
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-and-syntax:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      # Cache for speed
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+
+      - name: Install tools
+        run: pip install pyyaml flake8
+
+      - name: Python Syntax Check
+        run: |
+          for file in $(git ls-files '*.py'); do
+            python -m py_compile "$file"
+          done
+
+      - name: Lint Code
+        run: flake8 .
+
+      - name: YAML Validation
+        run: |
+          for file in $(git ls-files '*.yml' '*.yaml'); do
+            python -c "import yaml; yaml.safe_load(open('$file'))"
+          done
