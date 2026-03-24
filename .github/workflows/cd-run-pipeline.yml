@@ -48,6 +48,8 @@ jobs:
       AIRFLOW_ADMIN_LASTNAME: ${{ secrets.AIRFLOW_ADMIN_LASTNAME }}
       AIRFLOW_ADMIN_EMAIL: ${{ secrets.AIRFLOW_ADMIN_EMAIL }}
       AIRFLOW_EXECUTOR: ${{ secrets.AIRFLOW_EXECUTOR }}
+      AIRFLOW_FERNET_KEY: ${{ secrets.AIRFLOW_FERNET_KEY }}
+      AIRFLOW_SECRET_KEY: ${{ secrets.AIRFLOW_SECRET_KEY }}
 
       # =========================
       # Monitoring
