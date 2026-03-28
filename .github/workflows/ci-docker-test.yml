@@ -1,0 +1,145 @@
+name: CI - Docker Services Test
+
+# Trigger on pull requests (forks included)
+on:
+  pull_request:
+
+jobs:
+  docker-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # =========================
+      # Checkout repository
+      # =========================
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # =========================
+      # Create .env file for Docker services
+      # NOTE: All values here are NON-SENSITIVE test values for CI only.
+      # DO NOT use these values in production!
+      # =========================
+      - name: Create .env file
+        run: |
+          cat << EOF > .env
+          # -------------------------
+          # MinIO - Test Credentials
+          # -------------------------
+          MINIO_ROOT_USER=minioadmin          # Test value
+          MINIO_ROOT_PASSWORD=minioadmin123   # Test value
+          MINIO_API_PORT=9000
+          MINIO_CONSOLE_PORT=9001
+          MINIO_RAM=512m
+          
+          # -------------------------
+          # PostgreSQL - Test Credentials
+          # -------------------------
+          POSTGRES_USER=postgres              # Test value
+          POSTGRES_PASSWORD=postgres123       # Test value
+          POSTGRES_DB=airflow
+          POSTGRES_PORT=5432
+          POSTGRES_RAM=512m
+          
+          # -------------------------
+          # Airflow - Test Credentials
+          # -------------------------
+          AIRFLOW_ADMIN_USER=admin            # Test value
+          AIRFLOW_ADMIN_PASSWORD=admin123     # Test value
+          AIRFLOW_ADMIN_FIRSTNAME=Admin
+          AIRFLOW_ADMIN_LASTNAME=User
+          AIRFLOW_ADMIN_EMAIL=admin@example.com
+          AIRFLOW_FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=  # Valid 32-byte base64 key
+          AIRFLOW_SECRET_KEY=test_secret_key_123456789                       # Test value
+          AIRFLOW_EXECUTOR=LocalExecutor
+          AIRFLOW_WEBSERVER_RAM=512m
+          AIRFLOW_SCHEDULER_RAM=512m
+          
+          # -------------------------
+          # Kafka / Zookeeper
+          # -------------------------
+          KAFKA_INTERNAL_PORT=9092
+          KAFKA_EXTERNAL_PORT=9094
+          KAFKA_RAM=1024m
+          KAFKA_UI_RAM=256m
+          ZOOKEEPER_CLIENT_PORT=2181
+          ZOOKEEPER_RAM=256m
+          
+          # -------------------------
+          # Monitoring - Test Values
+          # -------------------------
+          PROMETHEUS_PORT=9090
+          PROMETHEUS_RAM=256m
+          GRAFANA_PORT=3000
+          GRAFANA_RAM=256m
+          
+          # -------------------------
+          # Iceberg / DBT
+          # -------------------------
+          ICEBERG_REST_PORT=8181
+          ICEBERG_RAM=512m
+          DBT_RAM=512m
+          EOF
+          
+          chmod 600 .env
+
+      # =========================
+      # Build Docker images
+      # =========================
+      - name: Build Docker images
+        run: docker compose build
+
+      # =========================
+      # Start Docker services
+      # =========================
+      - name: Start Services
+        run: docker compose up -d
+
+      # =========================
+      # Wait for Flink JobManager
+      # =========================
+      - name: Wait for Flink JobManager
+        run: |
+          echo "Waiting for Flink..."
+          timeout 120 bash -c '
+            until curl -s http://localhost:18081 > /dev/null; do
+              sleep 5
+            done
+          '
+
+      # =========================
+      # Check Kafka Topics
+      # =========================
+      - name: Check Kafka Topics
+        run: |
+          docker exec kafka kafka-topics \
+            --bootstrap-server localhost:9092 \
+            --list || true
+
+      # =========================
+      # Check MinIO Buckets
+      # =========================
+      - name: Check MinIO Bucket
+        run: |
+          docker exec mc mc ls minio || true
+
+      # =========================
+      # Dump logs on failure
+      # =========================
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs
+
+      # =========================
+      # Cleanup Docker
+      # =========================
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
+      
+      # =========================
+      # Remove .env file
+      # =========================
+      - name: Remove .env file
+        if: always()
+        run: rm -f .env

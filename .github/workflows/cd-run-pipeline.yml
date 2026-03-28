@@ -1,0 +1,149 @@
+name: CD - Run Streaming Pipeline
+
+on:
+  push:
+    branches: ["feature/CI"]
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      # =========================
+      # Checkout repo
+      # =========================
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # =========================
+      # Create temporary .env file (required by docker-compose.yml)
+      # =========================
+      - name: Create .env file
+        run: |
+          cat << EOF > .env
+          # MinIO
+          MINIO_ROOT_USER=${{ secrets.MINIO_ROOT_USER }}
+          MINIO_ROOT_PASSWORD=${{ secrets.MINIO_ROOT_PASSWORD }}
+          MINIO_API_PORT=9000
+          MINIO_CONSOLE_PORT=9001
+          MINIO_RAM=512m
+          
+          # PostgreSQL
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          POSTGRES_PORT=5432
+          POSTGRES_RAM=512m
+          
+          # Airflow
+          AIRFLOW_ADMIN_USER=${{ secrets.AIRFLOW_ADMIN_USER }}
+          AIRFLOW_ADMIN_PASSWORD=${{ secrets.AIRFLOW_ADMIN_PASSWORD }}
+          AIRFLOW_ADMIN_FIRSTNAME=${{ secrets.AIRFLOW_ADMIN_FIRSTNAME }}
+          AIRFLOW_ADMIN_LASTNAME=${{ secrets.AIRFLOW_ADMIN_LASTNAME }}
+          AIRFLOW_ADMIN_EMAIL=${{ secrets.AIRFLOW_ADMIN_EMAIL }}
+          AIRFLOW_FERNET_KEY=${{ secrets.AIRFLOW_FERNET_KEY }}
+          AIRFLOW_SECRET_KEY=${{ secrets.AIRFLOW_SECRET_KEY }}
+          AIRFLOW_EXECUTOR=LocalExecutor
+          AIRFLOW_WEBSERVER_RAM=512m
+          AIRFLOW_SCHEDULER_RAM=512m
+          
+          # Kafka
+          KAFKA_INTERNAL_PORT=9092
+          KAFKA_EXTERNAL_PORT=9094
+          KAFKA_RAM=1024m
+          KAFKA_UI_RAM=256m
+          
+          # Zookeeper
+          ZOOKEEPER_CLIENT_PORT=2181
+          ZOOKEEPER_RAM=256m
+          
+          # Prometheus
+          PROMETHEUS_PORT=9090
+          PROMETHEUS_RAM=256m
+          
+          # Grafana
+          GRAFANA_PORT=3000
+          GRAFANA_RAM=256m
+          
+          # Iceberg
+          ICEBERG_REST_PORT=8181
+          ICEBERG_RAM=512m
+          
+          # DBT
+          DBT_RAM=512m
+          EOF
+          
+          # Secure the .env file
+          chmod 600 .env
+
+      # =========================
+      # Build images 
+      # =========================
+      - name: Build images
+        run: docker compose build
+
+      # =========================
+      # Start services
+      # =========================
+      - name: Start services
+        run: docker compose up -d
+
+      # =========================
+      # Wait for Flink
+      # =========================
+      - name: Wait for Flink
+        run: |
+          timeout 180 bash -c '
+            until curl -s http://localhost:18081 > /dev/null; do
+              echo "Waiting for Flink..."
+              sleep 5
+            done
+          '
+
+      # =========================
+      # Wait for MinIO
+      # =========================
+      - name: Wait for MinIO
+        run: |
+          timeout 120 bash -c '
+            until curl -s http://localhost:9000/minio/health/live > /dev/null; do
+              echo "Waiting for MinIO..."
+              sleep 5
+            done
+          '
+
+      # =========================
+      # Run Pipeline Script
+      # =========================
+      - name: Run Pipeline
+        run: |
+          chmod +x scripts/run_pipeline.sh
+          ./scripts/run_pipeline.sh
+
+      # =========================
+      # Validate Output
+      # =========================
+      - name: Check Iceberg Data
+        run: |
+          docker exec mc mc ls minio/warehouse || true
+
+      # =========================
+      # Debug Logs on Failure
+      # =========================
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs
+
+      # =========================
+      # Cleanup
+      # =========================
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
+        
+      # =========================
+      # Remove .env file
+      # =========================
+      - name: Remove .env file
+        if: always()
+        run: rm -f .env

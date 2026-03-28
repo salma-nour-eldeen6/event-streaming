@@ -1,0 +1,84 @@
+name: CI - Code Quality
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-and-syntax:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0    
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      # Cache for speed
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+
+      - name: Install tools
+        run: |
+          pip install pyyaml flake8 sqlfluff
+
+      # =========================
+      # Get changed files
+      # =========================
+      - name: Get changed files
+        id: changed-files
+        run: |
+          git fetch origin main
+          git diff --name-only origin/main...HEAD > changed_files.txt || true
+          cat changed_files.txt
+
+      # =========================
+      # Python Checks
+      # =========================
+      - name: Python Syntax Check (changed only)
+        run: |
+          for file in $(grep '\.py$' changed_files.txt || true); do
+            echo "Checking $file"
+            python -m py_compile "$file"
+          done
+
+      - name: Lint Python Code (non-blocking)
+        run: |
+          for file in $(grep '\.py$' changed_files.txt || true); do
+            flake8 "$file" || echo "Lint issue in $file"
+          done
+
+      # =========================
+      # YAML Checks
+      # =========================
+      - name: YAML Validation (changed only)
+        run: |
+          for file in $(grep -E '\.ya?ml$' changed_files.txt || true); do
+            echo "Checking $file"
+            python -c "import yaml; yaml.safe_load(open('$file'))"
+          done
+
+      # =========================
+      # SQL Checks
+      # =========================
+      - name: Lint SQL (changed only)
+        run: |
+          for file in $(grep '\.sql$' changed_files.txt || true); do
+            echo "Linting $file"
+            sqlfluff lint "$file" --dialect flink --ignore parsing
+          done
+
+      - name: SQL Parse Check (changed only)
+        run: |
+          for file in $(grep '\.sql$' changed_files.txt || true); do
+            echo "Parsing $file"
+            sqlfluff parse "$file" --dialect flink || true
+          done

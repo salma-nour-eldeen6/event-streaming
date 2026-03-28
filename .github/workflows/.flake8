@@ -1,0 +1,9 @@
+[flake8]
+max-line-length = 120
+
+# ignore trivial issues
+ignore = 
+    E501,  # line too long
+    W291,  # trailing whitespace
+    E302,  # blank lines
+    E305   # blank lines after function
