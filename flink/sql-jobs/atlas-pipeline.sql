@@ -33,7 +33,7 @@ CREATE CATALOG iceberg WITH (
 
 CREATE DATABASE IF NOT EXISTS iceberg.atlas_db;
 
-
+-- 1.Define Flink SQL Kafka source schema that tells Flink how to read JSON fields from the Kafka topic.
 DROP TABLE IF EXISTS atlas_source;
 
 CREATE TABLE IF NOT EXISTS atlas_source (
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS atlas_source (
     'format' = 'json',
     'json.ignore-parse-errors' = 'true'
 );
-
+-- 2. Define Bronze table where Flink writes the selected fields
 DROP TABLE IF EXISTS iceberg.atlas_db.bronze_measurements;
 
 CREATE TABLE iceberg.atlas_db.bronze_measurements (
@@ -85,9 +85,9 @@ CREATE TABLE iceberg.atlas_db.bronze_measurements (
     dup INT,
     rcvd INT,
     sent INT,
-    min DOUBLE,
-    max DOUBLE,
-    avg DOUBLE,
+    min_value DOUBLE,
+    max_value DOUBLE,
+    avg_value DOUBLE,
     msm_id BIGINT,
     prb_id BIGINT,
     event_timestamp BIGINT,
@@ -100,7 +100,7 @@ WITH (
     'catalog-name' = 'iceberg',
     'format' = 'parquet'
 );
-
+-- 3.mapping from Kafka JSON into Iceberg  bronze table
 INSERT INTO iceberg.atlas_db.bronze_measurements
 SELECT
     fw,
@@ -116,9 +116,9 @@ SELECT
     dup,
     rcvd,
     sent,
-    `min`,
-    `max`,
-    `avg`,
+    `min` AS min_value,
+    `max` AS max_value,
+    `avg` AS avg_value,
     msm_id,
     prb_id,
     `timestamp` AS event_timestamp,
