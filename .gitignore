@@ -18,3 +18,5 @@ logs/
 *.jar
 flink/lib/*.jar
 flink/flink/lib/*.jar
+#jupyeter autosave backups (copies of notebook everytime i save )
+.ipynb_checkpoints/
