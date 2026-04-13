@@ -66,19 +66,31 @@ WITH (
 
 
 DROP TABLE IF EXISTS atlas_source;
+
 CREATE TABLE IF NOT EXISTS atlas_source (
     fw INT,
     mver STRING,
+    lts INT,
+    dst_name STRING,
+    af INT,
     dst_addr STRING,
-    `avg` DOUBLE,
+    src_addr STRING,
+    proto STRING,
+    ttl INT,
+    size INT,
+    dup INT,
+    rcvd INT,
+    sent INT,
     `min` DOUBLE,
     `max` DOUBLE,
-    sent INT,
-    rcvd INT,
+    `avg` DOUBLE,
     msm_id BIGINT,
     prb_id BIGINT,
     `timestamp` BIGINT,
-    `type` STRING
+    msm_name STRING,
+    `from` STRING,
+    `type` STRING,
+    step INT
 ) WITH (
     'connector' = 'kafka',
     'topic' = 'atlas_measurements',
