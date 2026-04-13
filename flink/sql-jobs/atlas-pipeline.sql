@@ -100,32 +100,29 @@ CREATE TABLE IF NOT EXISTS atlas_source (
     'json.ignore-parse-errors' = 'true'
 );
 
-INSERT INTO iceberg.atlas_db.measurements
+INSERT INTO iceberg.atlas_db.bronze_measurements
 SELECT
     fw,
     mver,
+    lts,
+    dst_name,
+    af,
     dst_addr,
-    `avg` AS avg_value,
-    `min` AS min_value,
-    `max` AS max_value,
-    sent,
+    src_addr,
+    proto,
+    ttl,
+    size,
+    dup,
     rcvd,
+    sent,
+    `min`,
+    `max`,
+    `avg`,
     msm_id,
     prb_id,
-    `timestamp` AS event_timestamp,
-    `type` AS measurement_type,
-
-    CAST(
-        CASE
-            WHEN sent > 0 THEN (sent - rcvd) * 1.0 / sent
-            ELSE 0
-        END AS DOUBLE
-    ) AS packet_loss,
-
-    DATE_FORMAT(TO_TIMESTAMP_LTZ(`timestamp`, 3), 'yyyy-MM-dd') AS event_date,
-
-    CAST(
-        HOUR(TO_TIMESTAMP_LTZ(`timestamp`, 3))
-        AS INT
-    ) AS event_hour
+    `timestamp`,
+    msm_name,
+    `from`,
+    `type`,
+    step
 FROM atlas_source;
