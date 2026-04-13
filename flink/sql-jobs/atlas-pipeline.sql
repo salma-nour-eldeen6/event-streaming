@@ -32,37 +32,6 @@ CREATE CATALOG iceberg WITH (
 );
 
 CREATE DATABASE IF NOT EXISTS iceberg.atlas_db;
-DROP TABLE IF EXISTS iceberg.atlas_db.bronze_measurements;
-
-CREATE TABLE iceberg.atlas_db.bronze_measurements (
-    fw INT,
-    mver STRING,
-    lts INT,
-    dst_name STRING,
-    af INT,
-    dst_addr STRING,
-    src_addr STRING,
-    proto STRING,
-    ttl INT,
-    size INT,
-    dup INT,
-    rcvd INT,
-    sent INT,
-    min DOUBLE,
-    max DOUBLE,
-    avg DOUBLE,
-    msm_id BIGINT,
-    prb_id BIGINT,
-    `timestamp` BIGINT,
-    msm_name STRING,
-    `from` STRING,
-    `type` STRING,
-    step INT
-)
-WITH (
-    'catalog-name' = 'iceberg',
-    'format' = 'parquet'
-);
 
 
 DROP TABLE IF EXISTS atlas_source;
@@ -100,6 +69,38 @@ CREATE TABLE IF NOT EXISTS atlas_source (
     'json.ignore-parse-errors' = 'true'
 );
 
+DROP TABLE IF EXISTS iceberg.atlas_db.bronze_measurements;
+
+CREATE TABLE iceberg.atlas_db.bronze_measurements (
+    fw INT,
+    mver STRING,
+    lts INT,
+    dst_name STRING,
+    af INT,
+    dst_addr STRING,
+    src_addr STRING,
+    proto STRING,
+    ttl INT,
+    size INT,
+    dup INT,
+    rcvd INT,
+    sent INT,
+    min DOUBLE,
+    max DOUBLE,
+    avg DOUBLE,
+    msm_id BIGINT,
+    prb_id BIGINT,
+    event_timestamp BIGINT,
+    msm_name STRING,
+    src_public_ip STRING,
+    measurement_type STRING,
+    step INT
+)
+WITH (
+    'catalog-name' = 'iceberg',
+    'format' = 'parquet'
+);
+
 INSERT INTO iceberg.atlas_db.bronze_measurements
 SELECT
     fw,
@@ -120,9 +121,9 @@ SELECT
     `avg`,
     msm_id,
     prb_id,
-    `timestamp`,
+    `timestamp` AS event_timestamp,
     msm_name,
-    `from`,
-    `type`,
+    `from` AS src_public_ip,
+    `type` AS measurement_type,
     step
 FROM atlas_source;
