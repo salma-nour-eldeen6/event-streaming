@@ -208,7 +208,7 @@ services:
         FLINK_PROPERTIES=
         jobmanager.rpc.address: flink-jobmanager
         rest.port: 18081
-        taskmanager.numberOfTaskSlots: 2
+        taskmanager.numberOfTaskSlots: 4
         state.backend: rocksdb
         state.backend.incremental: true
         AWS_REGION=us-east-1
