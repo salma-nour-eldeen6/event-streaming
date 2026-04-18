@@ -1,3 +1,11 @@
+# streaming / producer
 kafka-python
 websocket-client
 python-dotenv
+
+# eda / notebooks
+pandas
+matplotlib
+pyarrow
+jupyter
+ipykernel

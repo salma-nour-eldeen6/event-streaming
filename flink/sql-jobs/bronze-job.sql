@@ -32,44 +32,34 @@ CREATE CATALOG iceberg WITH (
 );
 
 CREATE DATABASE IF NOT EXISTS iceberg.atlas_db;
-DROP TABLE IF EXISTS iceberg.atlas_db.measurements;
 
-CREATE TABLE iceberg.atlas_db.measurements (
-    fw INT,
-    mver STRING,
-    dst_addr STRING,
-    avg_value DOUBLE,
-    min_value DOUBLE,
-    max_value DOUBLE,
-    sent INT,
-    rcvd INT,
-    msm_id BIGINT,
-    prb_id BIGINT,
-    event_timestamp BIGINT,
-    measurement_type STRING,
-    packet_loss DOUBLE,
-    event_date STRING,
-    event_hour INT
-)
-WITH (
-    'catalog-name' = 'iceberg',
-    'format' = 'parquet'
-);
-
+-- 1.Define Flink SQL Kafka source schema that tells Flink how to read JSON fields from the Kafka topic.
 DROP TABLE IF EXISTS atlas_source;
+
 CREATE TABLE IF NOT EXISTS atlas_source (
     fw INT,
     mver STRING,
+    lts INT,
+    dst_name STRING,
+    af INT,
     dst_addr STRING,
-    `avg` DOUBLE,
+    src_addr STRING,
+    proto STRING,
+    ttl INT,
+    size INT,
+    dup INT,
+    rcvd INT,
+    sent INT,
     `min` DOUBLE,
     `max` DOUBLE,
-    sent INT,
-    rcvd INT,
+    `avg` DOUBLE,
     msm_id BIGINT,
     prb_id BIGINT,
     `timestamp` BIGINT,
-    `type` STRING
+    msm_name STRING,
+    `from` STRING,
+    `type` STRING,
+    step INT
 ) WITH (
     'connector' = 'kafka',
     'topic' = 'atlas_measurements',
@@ -78,33 +68,62 @@ CREATE TABLE IF NOT EXISTS atlas_source (
     'format' = 'json',
     'json.ignore-parse-errors' = 'true'
 );
+-- 2. Define Bronze table where Flink writes the selected fields
+DROP TABLE IF EXISTS iceberg.atlas_db.bronze_measurements;
 
-INSERT INTO iceberg.atlas_db.measurements
+CREATE TABLE iceberg.atlas_db.bronze_measurements (
+    fw INT,
+    mver STRING,
+    lts INT,
+    dst_name STRING,
+    af INT,
+    dst_addr STRING,
+    src_addr STRING,
+    proto STRING,
+    ttl INT,
+    size INT,
+    dup INT,
+    rcvd INT,
+    sent INT,
+    min_value DOUBLE,
+    max_value DOUBLE,
+    avg_value DOUBLE,
+    msm_id BIGINT,
+    prb_id BIGINT,
+    event_timestamp BIGINT,
+    msm_name STRING,
+    src_public_ip STRING,
+    measurement_type STRING,
+    step INT
+)
+WITH (
+    'catalog-name' = 'iceberg',
+    'format' = 'parquet'
+);
+-- 3.mapping from Kafka JSON into Iceberg  bronze table
+INSERT INTO iceberg.atlas_db.bronze_measurements
 SELECT
     fw,
     mver,
+    lts,
+    dst_name,
+    af,
     dst_addr,
-    `avg` AS avg_value,
+    src_addr,
+    proto,
+    ttl,
+    size,
+    dup,
+    rcvd,
+    sent,
     `min` AS min_value,
     `max` AS max_value,
-    sent,
-    rcvd,
+    `avg` AS avg_value,
     msm_id,
     prb_id,
     `timestamp` AS event_timestamp,
+    msm_name,
+    `from` AS src_public_ip,
     `type` AS measurement_type,
-
-    CAST(
-        CASE
-            WHEN sent > 0 THEN (sent - rcvd) * 1.0 / sent
-            ELSE 0
-        END AS DOUBLE
-    ) AS packet_loss,
-
-    DATE_FORMAT(TO_TIMESTAMP_LTZ(`timestamp`, 3), 'yyyy-MM-dd') AS event_date,
-
-    CAST(
-        HOUR(TO_TIMESTAMP_LTZ(`timestamp`, 3))
-        AS INT
-    ) AS event_hour
+    step
 FROM atlas_source;
