@@ -306,10 +306,10 @@ services:
       JAVA_TOOL_OPTIONS: -Daws.accessKeyId=admin -Daws.secretKey=password
     volumes:
       - ./flink/sql-client/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
-      - ./flink/sql-jobs/atlas-pipeline.sql:/opt/flink/atlas-pipeline.sql
+      - ./flink/sql-jobs/bronze-job.sql:/opt/flink/bronze-job.sql
     command: >
       /bin/sh -c "
-      /opt/flink/bin/sql-client.sh -f /opt/flink/atlas-pipeline.sql;
+      /opt/flink/bin/sql-client.sh -f /opt/flink/bronze-job.sql;
       tail -f /dev/null
       "
     networks:
