@@ -32,6 +32,26 @@ services:
     networks:
       - data-pipeline
 
+
+
+  postgres-iceberg:
+    image: postgres:13
+    container_name: postgres-iceberg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: iceberg
+      POSTGRES_PASSWORD: iceberg123
+      POSTGRES_DB: iceberg_catalog
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "iceberg"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    networks:
+      - data-pipeline
+
   # ============================================
   # Airflow
   # ============================================
