@@ -339,7 +339,16 @@ services:
       - ./flink/sql-jobs/silver-ping-job.sql:/opt/flink/silver-ping-job.sql
     command: >
       /bin/sh -c "
-      /opt/flink/bin/sql-client.sh -f /opt/flink/bronze-job.sql;
+      set -e
+
+      echo 'Running Bronze Job...'
+      /opt/flink/bin/sql-client.sh -f /opt/flink/bronze-job.sql
+
+      echo 'Running Silver Job...'
+      /opt/flink/bin/sql-client.sh -f /opt/flink/silver-ping-job.sql
+
+      echo 'All jobs started successfully'
+
       tail -f /dev/null
       "
     networks:
