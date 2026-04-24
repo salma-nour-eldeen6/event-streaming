@@ -303,7 +303,28 @@ services:
       /usr/bin/mc policy set public minio/warehouse;
       tail -f /dev/null
       "
-
+    # ============================================
+    # postegres service to be backend of iceberg rest catalog (instead of sqlite so it can handle two concurrent commits of metadata)
+    # ============================================
+  postgres-iceberg:
+    image: postgres:13
+    container_name: postgres-iceberg
+    hostname: postgres-iceberg
+    environment:
+      POSTGRES_USER: iceberg
+      POSTGRES_PASSWORD: iceberg123
+      POSTGRES_DB: iceberg_catalog
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_iceberg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "iceberg", "-d", "iceberg_catalog"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - data-pipeline
   iceberg-rest:
     image: tabulario/iceberg-rest
     container_name: iceberg-rest
