@@ -88,4 +88,6 @@ SELECT
     DATE_FORMAT(TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3), 'yyyy-MM-dd') AS event_date,
     CAST(HOUR(TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3)) AS INT) AS event_hour
 FROM iceberg.atlas_db.bronze_measurements
+-- Don’t read Bronze once , Poll it every 10s and process new snapshots as they appear
++ OPTIONS('streaming'='true', 'monitor-interval'='10s') 
 WHERE measurement_type = 'ping';
