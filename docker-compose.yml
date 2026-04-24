@@ -325,6 +325,7 @@ services:
       retries: 5
     networks:
       - data-pipeline
+
   iceberg-rest:
     image: tabulario/iceberg-rest
     container_name: iceberg-rest
@@ -359,7 +360,6 @@ services:
         condition: service_healthy
     networks:
       - data-pipeline
-
   sql-client:
     container_name: sql-client
     restart: unless-stopped
