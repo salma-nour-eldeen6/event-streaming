@@ -442,4 +442,5 @@ services:
 
 volumes:
   postgres_data:
+  postgres_iceberg_data:
   minio_data:
