@@ -1,3 +1,5 @@
+version: "3.9"
+
 networks:
   data-pipeline:
     driver: bridge
@@ -14,7 +16,6 @@ services:
     container_name: postgres-airflow
     hostname: postgres
     mem_limit: ${POSTGRES_RAM}
-    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -22,28 +23,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
-      interval: 10s
-      retries: 5
-      start_period: 5s
-    networks:
-      - data-pipeline
-
-
-  postgres-iceberg:
-    image: postgres:13
-    container_name: postgres-iceberg
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: iceberg
-      POSTGRES_PASSWORD: iceberg123
-      POSTGRES_DB: iceberg_catalog
-    ports:
-      - "5433:5432"
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "iceberg"]
       interval: 10s
       retries: 5
       start_period: 5s
@@ -61,8 +43,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      kafka:
-        condition: service_started
     environment:
       AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR}
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
@@ -91,8 +71,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      kafka:
-        condition: service_started
     environment:
       AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR}
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
@@ -142,7 +120,6 @@ services:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper
     mem_limit: ${ZOOKEEPER_RAM}
-    restart: unless-stopped
     ports:
       - "${ZOOKEEPER_CLIENT_PORT}:${ZOOKEEPER_CLIENT_PORT}"
     environment:
@@ -157,7 +134,6 @@ services:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
     mem_limit: ${KAFKA_RAM}
-    restart: unless-stopped
     depends_on:
       - zookeeper
     ports:
@@ -196,12 +172,9 @@ services:
   flink-jobmanager:
     image: flink:1.18.1-scala_2.12-java11
     container_name: flink-jobmanager
-    restart: unless-stopped
     ports:
       - "18081:18081"
     command: jobmanager
-    depends_on:
-      - minio
     environment:
       - |
         FLINK_PROPERTIES=
@@ -227,10 +200,8 @@ services:
   flink-taskmanager:
     image: flink:1.18.1-scala_2.12-java11
     container_name: flink-taskmanager
-    restart: unless-stopped
     depends_on:
       - flink-jobmanager
-      - minio
     command: taskmanager
     environment:
       - |
@@ -257,31 +228,17 @@ services:
     image: minio/minio
     container_name: minio
     mem_limit: ${MINIO_RAM}
-    restart: unless-stopped
-
     command: server /data --console-address ":9001"
-    
-
     ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
-
+      - "${MINIO_API_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-
     volumes:
       - minio_data:/data
-
     networks:
       - data-pipeline
-
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
 
   mc:
     depends_on:
@@ -330,7 +287,6 @@ services:
     image: tabulario/iceberg-rest
     container_name: iceberg-rest
     mem_limit: ${ICEBERG_RAM}
-    restart: unless-stopped
     ports:
       - "${ICEBERG_REST_PORT}:8181"
     environment:
@@ -338,31 +294,26 @@ services:
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
       - AWS_REGION=us-east-1
 
-      # S3 / MinIO
       - CATALOG_WAREHOUSE=s3://warehouse/
       - CATALOG_IO__IMPL=org.apache.iceberg.aws.s3.S3FileIO
       - CATALOG_S3_ENDPOINT=http://minio:9000
       - CATALOG_S3_PATH__STYLE__ACCESS=true
 
-      # IMPORTANT CHANGE (JDBC BACKEND)
-      - CATALOG_CATALOG__IMPL=org.apache.iceberg.jdbc.JdbcCatalog
+      - CATALOG_CATALOG_IMPL=org.apache.iceberg.jdbc.JdbcCatalog
       - CATALOG_URI=jdbc:postgresql://postgres-iceberg:5432/iceberg_catalog
       - CATALOG_JDBC_USER=iceberg
       - CATALOG_JDBC_PASSWORD=iceberg123
-      - CATALOG_JDBC_USE_SSL=false
-      - CATALOG_JDBC_DRIVER=org.postgresql.Driver
     depends_on:
-      minio:
-        condition: service_healthy
-      mc:
-        condition: service_started
       postgres-iceberg:
         condition: service_healthy
+      minio:
+        condition: service_started
+      mc:
+        condition: service_started
     networks:
       - data-pipeline
   sql-client:
     container_name: sql-client
-    restart: unless-stopped
     depends_on:
       flink-jobmanager:
         condition: service_healthy
@@ -372,18 +323,10 @@ services:
         condition: service_started
       kafka:
         condition: service_started
-      
-      postgres-iceberg:
-        condition: service_started
-
     build:
       context: .
       dockerfile: flink/sql-client/Dockerfile
     environment:
-      CATALOG_CATALOG__IMPL: org.apache.iceberg.jdbc.JdbcCatalog
-      CATALOG_URI: jdbc:postgresql://postgres-iceberg:5432/iceberg_catalog
-      CATALOG_JDBC_USER: iceberg
-      CATALOG_JDBC_PASSWORD: iceberg123
       FLINK_JOBMANAGER_HOST: flink-jobmanager
       S3_ENDPOINT: http://minio:9000
       S3_PATH_STYLE_ACCESS: "true"
@@ -392,28 +335,30 @@ services:
       AWS_REGION: us-east-1
       AWS_DEFAULT_REGION: us-east-1
       JAVA_TOOL_OPTIONS: -Daws.accessKeyId=admin -Daws.secretKey=password
- 
     volumes:
       - ./flink/sql-client/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
       - ./flink/sql-jobs/bronze-job.sql:/opt/flink/bronze-job.sql
       - ./flink/sql-jobs/silver-ping-job.sql:/opt/flink/silver-ping-job.sql
     command: >
       /bin/sh -c "
-      set -e
-
-      echo 'Running Bronze Job...'
-      /opt/flink/bin/sql-client.sh -f /opt/flink/bronze-job.sql
-
-      echo 'Running Silver Job...'
-      /opt/flink/bin/sql-client.sh -f /opt/flink/silver-ping-job.sql
-
-      echo 'All jobs started successfully'
-
+      /opt/flink/bin/sql-client.sh -f /opt/flink/bronze-job.sql;
       tail -f /dev/null
       "
     networks:
       - data-pipeline
 
+  # ============================================
+  # dbt
+  # ============================================
+  dbt:
+    image: ghcr.io/dbt-labs/dbt-core
+    container_name: dbt
+    mem_limit: ${DBT_RAM}
+    volumes:
+      - ./dbt:/usr/app
+    working_dir: /usr/app
+    networks:
+      - data-pipeline
 
   # ============================================
   # Monitoring
