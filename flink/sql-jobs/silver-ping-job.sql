@@ -89,4 +89,3 @@ SELECT
     CAST(HOUR(TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3)) AS INT) AS event_hour
 FROM iceberg.atlas_db.bronze_measurements /*+ OPTIONS('streaming'='true', 'monitor-interval'='10s') */
 WHERE measurement_type = 'ping';
-WHERE measurement_type = 'ping';
