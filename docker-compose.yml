@@ -124,6 +124,9 @@ services:
       - "${ZOOKEEPER_CLIENT_PORT}:${ZOOKEEPER_CLIENT_PORT}"
     environment:
       ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT}
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
     networks:
       - data-pipeline
 
@@ -146,25 +149,24 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka_data:/var/lib/kafka/data
     command: >
       bash -c "KAFKA_HEAP_OPTS='-Xmx512M -Xms512M'
       /etc/confluent/docker/run"
     networks:
       - data-pipeline
-
-  kafka-ui:
-    image: provectuslabs/kafka-ui
-    container_name: kafka-ui
-    mem_limit: ${KAFKA_UI_RAM}
-    ports:
-      - "${KAFKA_UI_EXTERNAL_PORT:-8088}:8080"
-    environment:
-      KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:${KAFKA_INTERNAL_PORT}
-    depends_on:
-      - kafka
-    networks:
-      - data-pipeline
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bash",
+          "-c",
+          "kafka-topics --bootstrap-server localhost:9092 --list || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   # ============================================
   # Flink
@@ -255,7 +257,6 @@ services:
     entrypoint: >
       /bin/sh -c "
       until (/usr/bin/mc config host add minio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}) do echo '...waiting...' && sleep 1; done;
-      /usr/bin/mc rm -r --force minio/warehouse || true;
       /usr/bin/mc mb minio/warehouse;
       /usr/bin/mc policy set public minio/warehouse;
       tail -f /dev/null
@@ -299,7 +300,7 @@ services:
       - CATALOG_S3_ENDPOINT=http://minio:9000
       - CATALOG_S3_PATH__STYLE__ACCESS=true
 
-      - CATALOG_CATALOG_IMPL=org.apache.iceberg.jdbc.JdbcCatalog
+      - CATALOG_CATALOG__IMPL=org.apache.iceberg.jdbc.JdbcCatalog
       - CATALOG_URI=jdbc:postgresql://postgres-iceberg:5432/iceberg_catalog
       - CATALOG_JDBC_USER=iceberg
       - CATALOG_JDBC_PASSWORD=iceberg123
@@ -322,7 +323,7 @@ services:
       iceberg-rest:
         condition: service_started
       kafka:
-        condition: service_started
+        condition: service_healthy
     build:
       context: .
       dockerfile: flink/sql-client/Dockerfile
@@ -389,3 +390,6 @@ volumes:
   postgres_data:
   postgres_iceberg_data:
   minio_data:
+  kafka_data:
+  zookeeper_data:
+  zookeeper_log:
