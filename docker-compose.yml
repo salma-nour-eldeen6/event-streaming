@@ -340,6 +340,7 @@ services:
       - ./flink/sql-client/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
       - ./flink/sql-jobs/bronze-job.sql:/opt/flink/bronze-job.sql
       - ./flink/sql-jobs/silver-ping-job.sql:/opt/flink/silver-ping-job.sql
+      - ./flink/sql-jobs/gold-job.sql:/opt/flink/gold-job.sql
     command: >
       /bin/sh -c "
       /opt/flink/bin/sql-client.sh -f /opt/flink/bronze-job.sql;

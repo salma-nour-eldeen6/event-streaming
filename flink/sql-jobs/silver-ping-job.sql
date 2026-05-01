@@ -37,6 +37,7 @@ CREATE TABLE iceberg.atlas_db.silver_ping (
     fw INT,
     mver STRING,
     af INT,
+    ip_version STRING,
     dst_addr STRING,
     src_addr STRING,
     proto STRING,
@@ -44,14 +45,17 @@ CREATE TABLE iceberg.atlas_db.silver_ping (
     size INT,
     sent INT,
     rcvd INT,
-    avg_value DOUBLE,
-    min_value DOUBLE,
-    max_value DOUBLE,
+    avg_latency_ms DOUBLE,
+    min_latency_ms DOUBLE,
+    max_latency_ms DOUBLE,
     msm_id BIGINT,
     prb_id BIGINT,
     event_timestamp BIGINT,
+    event_time TIMESTAMP(3),
     measurement_type STRING,
     packet_loss DOUBLE,
+    is_success INT,
+    is_failed INT,
     event_date STRING,
     event_hour INT
 )
@@ -60,11 +64,17 @@ WITH (
     'format' = 'parquet'
 );
 
+
 INSERT INTO iceberg.atlas_db.silver_ping
 SELECT
     fw,
     mver,
     af,
+    CASE
+        WHEN af = 4 THEN 'IPv4'
+        WHEN af = 6 THEN 'IPv6'
+        ELSE 'UNKNOWN'
+    END AS ip_version,
     dst_addr,
     src_addr,
     proto,
@@ -72,19 +82,37 @@ SELECT
     size,
     sent,
     rcvd,
-    avg_value,
-    min_value,
-    max_value,
+    CASE
+        WHEN avg_value >= 0 THEN avg_value
+        ELSE NULL
+    END AS avg_latency_ms,
+    CASE
+        WHEN min_value >= 0 THEN min_value
+        ELSE NULL
+    END AS min_latency_ms,
+    CASE
+        WHEN max_value >= 0 THEN max_value
+        ELSE NULL
+    END AS max_latency_ms,
     msm_id,
     prb_id,
     event_timestamp,
+    TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3) AS event_time,
     measurement_type,
     CAST(
         CASE
             WHEN sent > 0 THEN (sent - rcvd) * 1.0 / sent
-            ELSE 0
+            ELSE NULL
         END AS DOUBLE
     ) AS packet_loss,
+    CASE
+        WHEN rcvd > 0 THEN 1
+        ELSE 0
+    END AS is_success,
+    CASE
+        WHEN rcvd = 0 THEN 1
+        ELSE 0
+    END AS is_failed,
     DATE_FORMAT(TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3), 'yyyy-MM-dd') AS event_date,
     CAST(HOUR(TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3)) AS INT) AS event_hour
 FROM iceberg.atlas_db.bronze_measurements /*+ OPTIONS('streaming'='true', 'monitor-interval'='10s') */
