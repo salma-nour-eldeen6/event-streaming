@@ -109,3 +109,31 @@ SELECT DISTINCT
         ELSE 'evening'
     END AS day_period
 FROM iceberg.atlas_db.silver_ping;
+
+INSERT INTO iceberg.atlas_db.fact_network_quality
+SELECT
+    CONCAT(event_date, '-', CAST(event_hour AS STRING)) AS datetime_key,
+    prb_id,
+    dst_addr,
+
+    COUNT(*) AS total_measurements,
+    SUM(is_success) AS successful_measurements,
+    SUM(is_failed) AS failed_measurements,
+
+    AVG(avg_latency_ms) AS avg_latency_ms,
+    MIN(min_latency_ms) AS min_latency_ms,
+    MAX(max_latency_ms) AS max_latency_ms,
+
+    AVG(packet_loss) AS avg_packet_loss,
+
+    CAST(SUM(is_success) AS DOUBLE) / COUNT(*) AS availability_rate,
+    CAST(SUM(is_failed) AS DOUBLE) / COUNT(*) AS failure_rate,
+
+    AVG(size) AS avg_packet_size
+
+FROM iceberg.atlas_db.silver_ping
+GROUP BY
+    event_date,
+    event_hour,
+    prb_id,
+    dst_addr;
