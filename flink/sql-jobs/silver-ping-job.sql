@@ -51,6 +51,7 @@ CREATE TABLE iceberg.atlas_db.silver_ping (
     msm_id BIGINT,
     prb_id BIGINT,
     event_timestamp BIGINT,
+    event_time TIMESTAMP(3),
     measurement_type STRING,
     packet_loss DOUBLE,
     is_success INT,
@@ -96,6 +97,7 @@ SELECT
     msm_id,
     prb_id,
     event_timestamp,
+    TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3) AS event_time,
     measurement_type,
     CAST(
         CASE
