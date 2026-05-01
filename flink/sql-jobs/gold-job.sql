@@ -93,3 +93,19 @@ SELECT DISTINCT
     proto,
     ip_version
 FROM iceberg.atlas_db.silver_ping;
+
+INSERT INTO iceberg.atlas_db.dim_datetime
+SELECT DISTINCT
+    CONCAT(event_date, '-', CAST(event_hour AS STRING)) AS datetime_key,
+    event_date,
+    event_hour,
+    CAST(SUBSTRING(event_date, 1, 4) AS INT) AS year,
+    CAST(SUBSTRING(event_date, 6, 2) AS INT) AS month,
+    CAST(SUBSTRING(event_date, 9, 2) AS INT) AS day,
+    CASE
+        WHEN event_hour BETWEEN 0 AND 5 THEN 'night'
+        WHEN event_hour BETWEEN 6 AND 11 THEN 'morning'
+        WHEN event_hour BETWEEN 12 AND 17 THEN 'afternoon'
+        ELSE 'evening'
+    END AS day_period
+FROM iceberg.atlas_db.silver_ping;
