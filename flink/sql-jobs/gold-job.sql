@@ -86,3 +86,10 @@ SELECT DISTINCT
     mver,
     ip_version
 FROM iceberg.atlas_db.silver_ping;
+
+INSERT INTO iceberg.atlas_db.dim_destination
+SELECT DISTINCT
+    dst_addr,
+    proto,
+    ip_version
+FROM iceberg.atlas_db.silver_ping;
