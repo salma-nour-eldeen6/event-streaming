@@ -34,8 +34,12 @@ DROP TABLE IF EXISTS iceberg.atlas_db.fact_network_quality;
 DROP TABLE IF EXISTS iceberg.atlas_db.dim_probe;
 DROP TABLE IF EXISTS iceberg.atlas_db.dim_destination;
 DROP TABLE IF EXISTS iceberg.atlas_db.dim_datetime;
+DROP TABLE IF EXISTS iceberg.atlas_db.gold_fact_network_quality;
+DROP TABLE IF EXISTS iceberg.atlas_db.gold_dim_probe;
+DROP TABLE IF EXISTS iceberg.atlas_db.gold_dim_destination;
+DROP TABLE IF EXISTS iceberg.atlas_db.gold_dim_datetime;
 
-CREATE TABLE iceberg.atlas_db.dim_probe (
+CREATE TABLE iceberg.atlas_db.gold_dim_probe (
     prb_id BIGINT,
     src_addr STRING,
     fw INT,
@@ -46,7 +50,7 @@ WITH (
     'format' = 'parquet'
 );
 
-CREATE TABLE iceberg.atlas_db.dim_destination (
+CREATE TABLE iceberg.atlas_db.gold_dim_destination (
     dst_addr STRING,
     proto STRING,
     ip_version STRING
@@ -56,7 +60,7 @@ WITH (
     'format' = 'parquet'
 );
 
-CREATE TABLE iceberg.atlas_db.dim_datetime (
+CREATE TABLE iceberg.atlas_db.gold_dim_datetime (
     datetime_key STRING,
     event_date STRING,
     event_hour INT,
@@ -69,7 +73,7 @@ WITH (
     'catalog-name' = 'iceberg',
     'format' = 'parquet'
 );
-CREATE TABLE iceberg.atlas_db.fact_network_quality (
+CREATE TABLE iceberg.atlas_db.gold_fact_network_quality (
     datetime_key STRING,
     prb_id BIGINT,
     dst_addr STRING,
@@ -91,7 +95,7 @@ WITH (
     'catalog-name' = 'iceberg',
     'format' = 'parquet'
 );
-INSERT INTO iceberg.atlas_db.dim_probe
+INSERT INTO iceberg.atlas_db.gold_dim_probe
 SELECT DISTINCT
     prb_id,
     src_addr,
@@ -99,14 +103,14 @@ SELECT DISTINCT
     mver
 FROM iceberg.atlas_db.silver_ping;
 
-INSERT INTO iceberg.atlas_db.dim_destination
+INSERT INTO iceberg.atlas_db.gold_dim_destination
 SELECT DISTINCT
     dst_addr,
     proto,
     ip_version
 FROM iceberg.atlas_db.silver_ping;
 
-INSERT INTO iceberg.atlas_db.dim_datetime
+INSERT INTO iceberg.atlas_db.gold_dim_datetime
 SELECT DISTINCT
     CONCAT(event_date, '-', CAST(event_hour AS STRING)) AS datetime_key,
     event_date,
@@ -122,7 +126,7 @@ SELECT DISTINCT
     END AS day_period
 FROM iceberg.atlas_db.silver_ping;
 
-INSERT INTO iceberg.atlas_db.fact_network_quality
+INSERT INTO iceberg.atlas_db.gold_fact_network_quality
 SELECT
     CONCAT(event_date, '-', CAST(event_hour AS STRING)) AS datetime_key,
     prb_id,
