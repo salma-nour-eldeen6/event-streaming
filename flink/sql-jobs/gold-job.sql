@@ -102,10 +102,11 @@ FROM iceberg.atlas_db.silver_ping;
 
 INSERT INTO iceberg.atlas_db.gold_dim_destination
 SELECT DISTINCT
-    dst_addr,
+    CAST(dst_addr AS STRING) AS dst_addr,
     proto,
     ip_version
-FROM iceberg.atlas_db.silver_ping;
+FROM iceberg.atlas_db.silver_ping
+WHERE dst_addr IS NOT NULL;
 
 INSERT INTO iceberg.atlas_db.gold_dim_datetime
 SELECT DISTINCT
@@ -126,27 +127,31 @@ FROM iceberg.atlas_db.silver_ping;
 INSERT INTO iceberg.atlas_db.gold_fact_network_quality
 SELECT
     CONCAT(event_date, '-', CAST(event_hour AS STRING)) AS datetime_key,
-    prb_id,
-    dst_addr,
+    CAST(prb_id AS BIGINT) AS prb_id,
+    CAST(dst_addr AS STRING) AS dst_addr,
 
-    COUNT(*) AS total_measurements,
-    SUM(is_success) AS successful_measurements,
-    SUM(is_failed) AS failed_measurements,
+    CAST(COUNT(*) AS BIGINT) AS total_measurements,
+    CAST(SUM(CAST(is_success AS BIGINT)) AS BIGINT) AS successful_measurements,
+    CAST(SUM(CAST(is_failed AS BIGINT)) AS BIGINT) AS failed_measurements,
 
-    AVG(avg_latency_ms) AS avg_latency_ms,
-    MIN(min_latency_ms) AS min_latency_ms,
-    MAX(max_latency_ms) AS max_latency_ms,
+    CAST(AVG(CAST(avg_latency_ms AS DOUBLE)) AS DOUBLE) AS avg_latency_ms,
+    CAST(MIN(CAST(min_latency_ms AS DOUBLE)) AS DOUBLE) AS min_latency_ms,
+    CAST(MAX(CAST(max_latency_ms AS DOUBLE)) AS DOUBLE) AS max_latency_ms,
 
-    AVG(packet_loss) AS avg_packet_loss,
+    CAST(AVG(CAST(packet_loss AS DOUBLE)) AS DOUBLE) AS avg_packet_loss,
 
-    CAST(SUM(is_success) AS DOUBLE) / COUNT(*) AS availability_rate,
-    CAST(SUM(is_failed) AS DOUBLE) / COUNT(*) AS failure_rate,
+    CAST(SUM(CAST(is_success AS DOUBLE)) / CAST(COUNT(*) AS DOUBLE) AS DOUBLE) AS availability_rate,
+    CAST(SUM(CAST(is_failed AS DOUBLE)) / CAST(COUNT(*) AS DOUBLE) AS DOUBLE) AS failure_rate,
 
-    AVG(CAST(size AS DOUBLE)) AS avg_packet_size
+    CAST(AVG(CAST(size AS DOUBLE)) AS DOUBLE) AS avg_packet_size
 
 FROM iceberg.atlas_db.silver_ping
+WHERE
+    dst_addr IS NOT NULL
+    AND prb_id IS NOT NULL
+    AND event_date IS NOT NULL
+    AND event_hour IS NOT NULL
 GROUP BY
-    event_date,
-    event_hour,
-    prb_id,
-    dst_addr;
+    CONCAT(event_date, '-', CAST(event_hour AS STRING)),
+    CAST(prb_id AS BIGINT),
+    CAST(dst_addr AS STRING);
