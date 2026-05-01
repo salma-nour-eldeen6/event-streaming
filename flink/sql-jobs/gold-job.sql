@@ -1,8 +1,4 @@
-SET 'state.backend' = 'rocksdb';
-SET 'state.backend.incremental' = 'true';
-SET 'execution.checkpointing.mode' = 'EXACTLY_ONCE';
-SET 'execution.checkpointing.interval' = '10s';
-SET 'execution.checkpointing.min-pause' = '10s';
+SET 'execution.runtime-mode' = 'batch';
 SET 'sql-client.execution.result-mode' = 'TABLEAU';
 SET 'parallelism.default' = '1';
 
