@@ -78,3 +78,11 @@ WITH (
     'catalog-name' = 'iceberg',
     'format' = 'parquet'
 );
+INSERT INTO iceberg.atlas_db.dim_probe
+SELECT DISTINCT
+    prb_id,
+    src_addr,
+    fw,
+    mver,
+    ip_version
+FROM iceberg.atlas_db.silver_ping;
