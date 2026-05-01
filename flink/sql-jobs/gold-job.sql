@@ -25,7 +25,6 @@ CREATE TABLE iceberg.atlas_db.dim_probe (
     src_addr STRING,
     fw INT,
     mver STRING,
-    ip_version STRING
 )
 WITH (
     'catalog-name' = 'iceberg',
@@ -83,8 +82,7 @@ SELECT DISTINCT
     prb_id,
     src_addr,
     fw,
-    mver,
-    ip_version
+    mver
 FROM iceberg.atlas_db.silver_ping;
 
 INSERT INTO iceberg.atlas_db.dim_destination
