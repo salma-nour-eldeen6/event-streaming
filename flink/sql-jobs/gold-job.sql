@@ -64,16 +64,15 @@ CREATE TABLE iceberg.atlas_db.dim_datetime (
     datetime_key STRING,
     event_date STRING,
     event_hour INT,
-    year INT,
-    month INT,
-    day INT,
+    event_year INT,
+    event_month INT,
+    event_day INT,
     day_period STRING
 )
 WITH (
     'catalog-name' = 'iceberg',
     'format' = 'parquet'
 );
-
 CREATE TABLE iceberg.atlas_db.fact_network_quality (
     datetime_key STRING,
     prb_id BIGINT,
@@ -116,9 +115,9 @@ SELECT DISTINCT
     CONCAT(event_date, '-', CAST(event_hour AS STRING)) AS datetime_key,
     event_date,
     event_hour,
-    CAST(SUBSTRING(event_date, 1, 4) AS INT) AS year,
-    CAST(SUBSTRING(event_date, 6, 2) AS INT) AS month,
-    CAST(SUBSTRING(event_date, 9, 2) AS INT) AS day,
+    CAST(SUBSTRING(event_date, 1, 4) AS INT) AS event_year,
+    CAST(SUBSTRING(event_date, 6, 2) AS INT) AS event_month,
+    CAST(SUBSTRING(event_date, 9, 2) AS INT) AS event_day,
     CASE
         WHEN event_hour BETWEEN 0 AND 5 THEN 'night'
         WHEN event_hour BETWEEN 6 AND 11 THEN 'morning'
