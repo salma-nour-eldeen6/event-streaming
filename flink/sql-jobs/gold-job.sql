@@ -30,10 +30,7 @@ CREATE DATABASE IF NOT EXISTS atlas_db;
 
 USE atlas_db;
 
-DROP TABLE IF EXISTS iceberg.atlas_db.fact_network_quality;
-DROP TABLE IF EXISTS iceberg.atlas_db.dim_probe;
-DROP TABLE IF EXISTS iceberg.atlas_db.dim_destination;
-DROP TABLE IF EXISTS iceberg.atlas_db.dim_datetime;
+
 DROP TABLE IF EXISTS iceberg.atlas_db.gold_fact_network_quality;
 DROP TABLE IF EXISTS iceberg.atlas_db.gold_dim_probe;
 DROP TABLE IF EXISTS iceberg.atlas_db.gold_dim_destination;
@@ -145,7 +142,7 @@ SELECT
     CAST(SUM(is_success) AS DOUBLE) / COUNT(*) AS availability_rate,
     CAST(SUM(is_failed) AS DOUBLE) / COUNT(*) AS failure_rate,
 
-    AVG(size) AS avg_packet_size
+    AVG(CAST(size AS DOUBLE)) AS avg_packet_size
 
 FROM iceberg.atlas_db.silver_ping
 GROUP BY
