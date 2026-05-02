@@ -1,8 +1,10 @@
 import asyncio
 import json
+from polars import datetime
 import websocket
 from kafka import KafkaProducer
 from kafka.errors import KafkaError 
+import uuid
 
 # Kafka setup
 try:
@@ -40,7 +42,6 @@ def on_message(ws, message):
         future.add_errback(on_send_error)
     except Exception as e:
         print("Error parsing or sending message:", e)
-
 def on_send_success(record_metadata):
     print(f"Message sent to topic {record_metadata.topic} partition {record_metadata.partition} offset {record_metadata.offset}")
 
@@ -52,6 +53,13 @@ def on_error(ws, error):
 
 def on_close(ws, close_status_code, close_msg):
     print("WebSocket closed:", close_status_code, close_msg)
+
+# add metadata enrichment to the payload before sending to Kafka
+def enrich(payload):
+    payload["event_id"] = str(uuid.uuid4())
+    payload["ingestion_time"] = datetime.utcnow().isoformat()
+    return payload
+
 
 if __name__ == "__main__":
     ws_url = "wss://atlas-stream.ripe.net/stream/?client=docs-example"
