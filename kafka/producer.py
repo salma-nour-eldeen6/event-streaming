@@ -19,6 +19,7 @@ except KafkaError as e:
     exit(1)
 
 TOPIC = "atlas_measurements"
+INVALID_TOPIC = "atlas_invalid_measurements"
 
 # WebSocket callbacks
 def on_open(ws):
@@ -35,13 +36,23 @@ def on_open(ws):
 def on_message(ws, message):
     try:
         event_type, payload = json.loads(message)
+
+        if not validate(payload):
+            producer.send(INVALID_TOPIC, value=payload)
+            return
+
+        payload = enrich(payload)
+
         key = str(payload.get("prb_id", "unknown"))
+
         future = producer.send(TOPIC, key=key, value=payload)
-        # Add callback for success / error
         future.add_callback(on_send_success)
         future.add_errback(on_send_error)
+
     except Exception as e:
         print("Error parsing or sending message:", e)
+
+
 def on_send_success(record_metadata):
     print(f"Message sent to topic {record_metadata.topic} partition {record_metadata.partition} offset {record_metadata.offset}")
 
