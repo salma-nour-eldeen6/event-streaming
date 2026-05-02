@@ -60,6 +60,20 @@ def enrich(payload):
     payload["ingestion_time"] = datetime.utcnow().isoformat()
     return payload
 
+# Basic validation to ensure payload has required fields before sending to Kafka
+def validate(payload):
+    if not isinstance(payload, dict):
+        return False
+    
+    # required fields (RIPE Atlas important ones)
+    if "prb_id" not in payload:
+        return False
+    
+    if "timestamp" not in payload:
+        return False
+
+    return True
+
 
 if __name__ == "__main__":
     ws_url = "wss://atlas-stream.ripe.net/stream/?client=docs-example"
