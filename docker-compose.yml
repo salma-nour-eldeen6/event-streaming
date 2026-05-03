@@ -313,8 +313,12 @@ services:
         condition: service_started
     networks:
       - data-pipeline
+
+
+
   sql-client:
     container_name: sql-client
+
     depends_on:
       flink-jobmanager:
         condition: service_healthy
@@ -324,30 +328,47 @@ services:
         condition: service_started
       kafka:
         condition: service_healthy
+
     build:
       context: .
       dockerfile: flink/sql-client/Dockerfile
+
+    env_file:
+      - .env
+
     environment:
       FLINK_JOBMANAGER_HOST: flink-jobmanager
-      S3_ENDPOINT: http://minio:9000
       S3_PATH_STYLE_ACCESS: "true"
-      AWS_ACCESS_KEY_ID: admin
-      AWS_SECRET_ACCESS_KEY: password
-      AWS_REGION: us-east-1
-      AWS_DEFAULT_REGION: us-east-1
-      JAVA_TOOL_OPTIONS: -Daws.accessKeyId=admin -Daws.secretKey=password
+
     volumes:
-      - ./flink/sql-client/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
-      - ./flink/sql-jobs/bronze-job.sql:/opt/flink/bronze-job.sql
-      - ./flink/sql-jobs/silver-ping-job.sql:/opt/flink/silver-ping-job.sql
-      - ./flink/sql-jobs/gold-job.sql:/opt/flink/gold-job.sql
+      - ./flink/sql-jobs:/opt/sql
+
     command: >
       /bin/sh -c "
-      /opt/flink/bin/sql-client.sh -f /opt/flink/bronze-job.sql;
-      tail -f /dev/null
+        set -e
+
+        echo '--- rendering catalog ---' &&
+        envsubst < /opt/sql/catalog-template.sql > /opt/sql/catalog.sql &&
+
+        echo '--- running catalog ---' &&
+        /opt/flink/bin/sql-client.sh -f /opt/sql/catalog.sql &&
+
+        echo '--- running bronze ---' &&
+        /opt/flink/bin/sql-client.sh -f /opt/sql/bronze-job.sql &&
+
+        echo '--- running silver ---' &&
+        /opt/flink/bin/sql-client.sh -f /opt/sql/silver-job.sql &&
+
+        echo '--- running gold ---' &&
+        /opt/flink/bin/sql-client.sh -f /opt/sql/gold-job.sql &&
+
+        tail -f /dev/null
       "
+
     networks:
       - data-pipeline
+
+      
 
   # ============================================
   # dbt
