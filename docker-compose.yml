@@ -159,17 +159,17 @@ services:
       /etc/confluent/docker/run"
     networks:
       - data-pipeline
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "bash",
-          "-c",
-          "kafka-topics --bootstrap-server kafka:${KAFKA_INTERNAL_PORT} --list || exit 1",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+    # healthcheck:
+    #   test:
+    #     [
+    #       "CMD",
+    #       "bash",
+    #       "-c",
+    #       "kafka-topics --bootstrap-server kafka:${KAFKA_INTERNAL_PORT} --list || exit 1",
+    #     ]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 10
 
   # ============================================
   # Flink
@@ -326,7 +326,7 @@ services:
       iceberg-rest:
         condition: service_started
       kafka:
-        condition: service_healthy
+        condition: service_started
     build:
       context: .
       dockerfile: flink/sql-client/Dockerfile
