@@ -15,19 +15,7 @@ ADD JAR '/opt/flink/lib/hadoop-client-2.8.3.jar';
 ADD JAR '/opt/flink/lib/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar';
 ADD JAR '/opt/flink/lib/bundle-2.20.18.jar';
 
-DROP CATALOG IF EXISTS iceberg;
-CREATE CATALOG iceberg WITH (
-    'type' = 'iceberg',
-    'catalog-impl' = 'org.apache.iceberg.rest.RESTCatalog',
-    'uri' = 'http://iceberg-rest:8181',
-    'warehouse' = 's3://warehouse/',
-    'io-impl' = 'org.apache.iceberg.aws.s3.S3FileIO',
-    's3.endpoint' = 'http://minio:9000',
-    's3.path-style-access' = 'true',
-    'client.region' = 'us-east-1',
-    's3.access-key-id' = 'admin',
-    's3.secret-access-key' = 'password'
-);
+ 
 
 CREATE DATABASE IF NOT EXISTS iceberg.atlas_db;
 
