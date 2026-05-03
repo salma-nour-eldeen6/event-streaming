@@ -21,6 +21,10 @@ with DAG(
         task_id="test_docker_access",
         bash_command="docker ps --format '{{.Names}}'",
     )
+    create_topic = BashOperator(
+    task_id="create_kafka_topic",
+    bash_command="bash /opt/airflow/scripts/create_kafka_topic.sh",
+    )
 
     run_bronze = BashOperator(
         task_id="run_bronze_job",
@@ -37,5 +41,5 @@ with DAG(
         bash_command="bash /opt/airflow/scripts/run_gold_job.sh",
     )
 
-    test_scripts_mount >> test_docker_access
-    test_docker_access >> [run_bronze, run_silver, run_gold]
+    # test_scripts_mount >> test_docker_access
+    # test_docker_access >> [run_bronze, run_silver, run_gold]
