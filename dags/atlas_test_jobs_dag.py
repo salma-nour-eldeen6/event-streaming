@@ -19,7 +19,7 @@ with DAG(
 
     test_docker_access = BashOperator(
         task_id="test_docker_access",
-        bash_command="docker ps --format '{{.Names}}'",
+        bash_command="docker ps --format '{{{{.Names}}}}'",
     )
     create_topic = BashOperator(
     task_id="create_kafka_topic",
