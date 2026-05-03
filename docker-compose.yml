@@ -165,7 +165,7 @@ services:
           "CMD",
           "bash",
           "-c",
-          "kafka-topics --bootstrap-server localhost:9092 --list || exit 1",
+          "kafka-topics --bootstrap-server kafka:${KAFKA_INTERNAL_PORT} --list || exit 1",
         ]
       interval: 10s
       timeout: 5s
