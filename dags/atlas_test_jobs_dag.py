@@ -23,26 +23,26 @@ with DAG(
     )
     create_topic = BashOperator(
     task_id="create_kafka_topic",
-    bash_command="bash /opt/airflow/scripts/create_kafka_topic.sh",
+    bash_command="bash /opt/airflow/scripts/create_kafka_topic.sh ",
     )
     run_producer = BashOperator(
     task_id="run_kafka_producer",
-    bash_command="bash /opt/airflow/scripts/run_kafka_producer.sh",
+    bash_command="bash /opt/airflow/scripts/run_kafka_producer.sh ",
     )
 
     run_bronze = BashOperator(
         task_id="run_bronze_job",
-        bash_command="bash /opt/airflow/scripts/run_bronze_job.sh",
+        bash_command="bash /opt/airflow/scripts/run_bronze_job.sh ",
     )
 
     run_silver = BashOperator(
         task_id="run_silver_job",
-        bash_command="bash /opt/airflow/scripts/run_silver_job.sh",
+        bash_command="bash /opt/airflow/scripts/run_silver_job.sh ",
     )
 
     run_gold = BashOperator(
         task_id="run_gold_job",
-        bash_command="bash /opt/airflow/scripts/run_gold_job.sh",
+        bash_command="bash /opt/airflow/scripts/run_gold_job.sh ",
     )
 
     test_scripts_mount >> test_docker_access
