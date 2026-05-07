@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # Kafka setup
 try:
     producer = KafkaProducer(
-        bootstrap_servers='localhost:9092',
+        bootstrap_servers='kafka:29092',
         key_serializer=lambda k: k.encode('utf-8'),
         value_serializer=lambda v: json.dumps(v).encode('utf-8')
     )
