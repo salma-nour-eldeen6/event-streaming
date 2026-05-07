@@ -57,6 +57,8 @@ services:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./scripts:/opt/airflow/scripts
+      - ./kafka:/opt/airflow/kafka
+      - ./requirements.txt:/opt/airflow/requirements.txt
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "${AIRFLOW_WEBSERVER_EXTERNAL_PORT:-8087}:8080"
@@ -82,6 +84,8 @@ services:
     volumes:
       - ./dags:/opt/airflow/dags
       - ./scripts:/opt/airflow/scripts
+      - ./kafka:/opt/airflow/kafka
+      - ./requirements.txt:/opt/airflow/requirements.txt
       - /var/run/docker.sock:/var/run/docker.sock
     command: scheduler
     networks:
