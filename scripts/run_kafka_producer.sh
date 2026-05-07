@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -e
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV_DIR="$PROJECT_DIR/.venv"
 PRODUCER_SCRIPT="$PROJECT_DIR/kafka/producer.py"
