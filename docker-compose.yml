@@ -49,7 +49,7 @@ services:
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
-      _PIP_ADDITIONAL_REQUIREMENTS: "kafka-python websockets python-dotenv prometheus-client"
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
       KAFKA_BROKER: kafka:${KAFKA_INTERNAL_PORT}
     env_file:
       - .env
@@ -57,6 +57,9 @@ services:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./scripts:/opt/airflow/scripts
+      - ./kafka:/opt/airflow/kafka
+      - ./requirements.txt:/opt/airflow/requirements.txt
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "${AIRFLOW_WEBSERVER_EXTERNAL_PORT:-8087}:8080"
     command: webserver
@@ -75,10 +78,15 @@ services:
       AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR}
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
     env_file:
       - .env
     volumes:
       - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/scripts
+      - ./kafka:/opt/airflow/kafka
+      - ./requirements.txt:/opt/airflow/requirements.txt
+      - /var/run/docker.sock:/var/run/docker.sock
     command: scheduler
     networks:
       - data-pipeline
@@ -156,17 +164,17 @@ services:
       /etc/confluent/docker/run"
     networks:
       - data-pipeline
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "bash",
-          "-c",
-          "kafka-topics --bootstrap-server localhost:9092 --list || exit 1",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+    # healthcheck:
+    #   test:
+    #     [
+    #       "CMD",
+    #       "bash",
+    #       "-c",
+    #       "kafka-topics --bootstrap-server kafka:${KAFKA_INTERNAL_PORT} --list || exit 1",
+    #     ]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 10
 
   # ============================================
   # Flink
@@ -323,7 +331,7 @@ services:
       iceberg-rest:
         condition: service_started
       kafka:
-        condition: service_healthy
+        condition: service_started
     build:
       context: .
       dockerfile: flink/sql-client/Dockerfile
@@ -343,7 +351,6 @@ services:
       - ./flink/sql-jobs/gold-job.sql:/opt/flink/gold-job.sql
     command: >
       /bin/sh -c "
-      /opt/flink/bin/sql-client.sh -f /opt/flink/bronze-job.sql;
       tail -f /dev/null
       "
     networks:
