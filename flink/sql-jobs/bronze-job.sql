@@ -137,3 +137,4 @@ WHERE
     AND `timestamp` IS NOT NULL
     AND sent >= 0
     AND rcvd >= 0;
+    -- Add more filters as needed to ensure data quality, e.g., valid IP addresses, reasonable value ranges, etc.
