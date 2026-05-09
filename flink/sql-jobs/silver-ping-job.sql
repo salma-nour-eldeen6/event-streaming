@@ -16,6 +16,7 @@ ADD JAR '/opt/flink/lib/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar';
 ADD JAR '/opt/flink/lib/bundle-2.20.18.jar';
 
 DROP CATALOG IF EXISTS iceberg;
+
 CREATE CATALOG iceberg WITH (
     'type' = 'iceberg',
     'catalog-impl' = 'org.apache.iceberg.rest.RESTCatalog',
@@ -64,7 +65,6 @@ WITH (
     'format' = 'parquet'
 );
 
-
 INSERT INTO iceberg.atlas_db.silver_ping
 SELECT
     fw,
@@ -82,40 +82,54 @@ SELECT
     size,
     sent,
     rcvd,
+
     CASE
         WHEN avg_value >= 0 THEN avg_value
         ELSE NULL
     END AS avg_latency_ms,
+
     CASE
         WHEN min_value >= 0 THEN min_value
         ELSE NULL
     END AS min_latency_ms,
+
     CASE
         WHEN max_value >= 0 THEN max_value
         ELSE NULL
     END AS max_latency_ms,
+
     msm_id,
     prb_id,
     event_timestamp,
     TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3) AS event_time,
     measurement_type,
+
     CAST(
         CASE
             WHEN sent > 0 THEN (sent - rcvd) * 1.0 / sent
             ELSE NULL
         END AS DOUBLE
     ) AS packet_loss,
+
     CASE
         WHEN rcvd > 0 THEN 1
         ELSE 0
     END AS is_success,
+
     CASE
         WHEN rcvd = 0 THEN 1
         ELSE 0
     END AS is_failed,
-    DATE_FORMAT(TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3), 'yyyy-MM-dd') AS event_date,
+
+    DATE_FORMAT(
+        TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3),
+        'yyyy-MM-dd'
+    ) AS event_date,
+
     CAST(HOUR(TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3)) AS INT) AS event_hour
-FROM iceberg.atlas_db.bronze_measurements /*+ OPTIONS('streaming'='true', 'monitor-interval'='10s') */
+
+FROM iceberg.atlas_db.bronze_measurements
+/*+ OPTIONS('streaming'='true', 'monitor-interval'='10s') */
 WHERE
     -- Focus only on ping measurements (exclude other measurement types)
     measurement_type = 'ping'
@@ -125,12 +139,12 @@ WHERE
     AND dst_addr IS NOT NULL
     AND event_timestamp IS NOT NULL
 
-    -- Packet transmission validity (must be logically correct)
+    -- Packet transmission validity
     AND sent >= 0
     AND rcvd >= 0
     AND rcvd <= sent
 
-    -- Network packet constraints
+    -- Network constraints
     AND ttl > 0
     AND ttl <= 255
     AND size > 0
@@ -138,9 +152,7 @@ WHERE
     -- Valid IP version
     AND af IN (4, 6)
 
-    -- Latency validation (two valid states only):
-    -- 1) fully valid metrics
-    -- 2) completely missing metrics
+    -- Latency validation (clean formatting fix)
     AND (
         (
             min_value IS NOT NULL
@@ -152,8 +164,7 @@ WHERE
             AND min_value <= avg_value
             AND avg_value <= max_value
         )
-        OR
-        (
+        OR (
             min_value IS NULL
             AND avg_value IS NULL
             AND max_value IS NULL
