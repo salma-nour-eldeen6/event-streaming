@@ -120,47 +120,42 @@ WHERE
     -- Focus only on ping measurements (exclude other measurement types)
     measurement_type = 'ping'
 
-    -- Ensure essential identifiers exist for traceability and grouping
+    -- Ensure required identifiers exist for grouping & traceability
     AND prb_id IS NOT NULL
     AND dst_addr IS NOT NULL
     AND event_timestamp IS NOT NULL
 
-    -- Packet transmission validation (network logic correctness)
-    -- sent and rcvd must be non-negative values
+    -- Packet transmission validity (must be logically correct)
     AND sent >= 0
     AND rcvd >= 0
-
-    -- Cannot receive more packets than sent
     AND rcvd <= sent
 
-    -- TTL (Time To Live) must be within valid IPv4/IPv6 range
+    -- Network packet constraints
     AND ttl > 0
     AND ttl <= 255
-
-    -- Packet size must be positive (invalid packets filtered out)
     AND size > 0
 
-    -- Ensure valid IP version classification
+    -- Valid IP version
     AND af IN (4, 6)
 
-    -- Latency metrics validation:
-    -- either all values exist and are non-negative
-    -- OR all are NULL (incomplete measurement case handled safely)
+    -- Latency validation (two valid states only):
+    -- 1) fully valid metrics
+    -- 2) completely missing metrics
     AND (
-        (min_value >= 0 AND avg_value >= 0 AND max_value >= 0)
-        OR
-        (min_value IS NULL AND avg_value IS NULL AND max_value IS NULL)
-    )
-
-    -- Latency consistency check:
-    -- ensures logical ordering of network latency metrics
-    AND (
-        min_value IS NULL
-        OR avg_value IS NULL
-        OR max_value IS NULL
-        OR (
-            min_value <= avg_value
+        (
+            min_value IS NOT NULL
+            AND avg_value IS NOT NULL
+            AND max_value IS NOT NULL
+            AND min_value >= 0
+            AND avg_value >= 0
+            AND max_value >= 0
+            AND min_value <= avg_value
             AND avg_value <= max_value
         )
+        OR
+        (
+            min_value IS NULL
+            AND avg_value IS NULL
+            AND max_value IS NULL
+        )
     );
-    
