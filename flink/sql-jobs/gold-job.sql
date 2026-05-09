@@ -151,7 +151,13 @@ WHERE
     AND prb_id IS NOT NULL
     AND event_date IS NOT NULL
     AND event_hour IS NOT NULL
+    AND avg_latency_ms IS NOT NULL
+    AND packet_loss BETWEEN 0 AND 1
+    AND is_success IN (0,1)
+    AND is_failed IN (0,1)
+    AND size > 0
 GROUP BY
     CONCAT(event_date, '-', CAST(event_hour AS STRING)),
     CAST(prb_id AS BIGINT),
-    CAST(dst_addr AS STRING);
+    CAST(dst_addr AS STRING)
+HAVING COUNT(*) > 0;
