@@ -117,22 +117,43 @@ SELECT
     CAST(HOUR(TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3)) AS INT) AS event_hour
 FROM iceberg.atlas_db.bronze_measurements /*+ OPTIONS('streaming'='true', 'monitor-interval'='10s') */
 WHERE
+    -- Focus only on ping measurements (exclude other measurement types)
     measurement_type = 'ping'
+
+    -- Ensure essential identifiers exist for traceability and grouping
     AND prb_id IS NOT NULL
     AND dst_addr IS NOT NULL
     AND event_timestamp IS NOT NULL
+
+    -- Packet transmission validation (network logic correctness)
+    -- sent and rcvd must be non-negative values
     AND sent >= 0
     AND rcvd >= 0
+
+    -- Cannot receive more packets than sent
     AND rcvd <= sent
+
+    -- TTL (Time To Live) must be within valid IPv4/IPv6 range
     AND ttl > 0
     AND ttl <= 255
+
+    -- Packet size must be positive (invalid packets filtered out)
     AND size > 0
+
+    -- Ensure valid IP version classification
     AND af IN (4, 6)
+
+    -- Latency metrics validation:
+    -- either all values exist and are non-negative
+    -- OR all are NULL (incomplete measurement case handled safely)
     AND (
         (min_value >= 0 AND avg_value >= 0 AND max_value >= 0)
         OR
         (min_value IS NULL AND avg_value IS NULL AND max_value IS NULL)
     )
+
+    -- Latency consistency check:
+    -- ensures logical ordering of network latency metrics
     AND (
         min_value IS NULL
         OR avg_value IS NULL
@@ -142,3 +163,4 @@ WHERE
             AND avg_value <= max_value
         )
     );
+    
