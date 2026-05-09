@@ -100,6 +100,11 @@ WITH (
     'catalog-name' = 'iceberg',
     'format' = 'parquet'
 );
+
+
+
+
+
 -- 3.mapping from Kafka JSON into Iceberg  bronze table
 INSERT INTO iceberg.atlas_db.bronze_measurements
 SELECT
@@ -126,4 +131,9 @@ SELECT
     `from` AS src_public_ip,
     `type` AS measurement_type,
     step
-FROM atlas_source;
+FROM atlas_source
+WHERE
+    prb_id IS NOT NULL
+    AND `timestamp` IS NOT NULL
+    AND sent >= 0
+    AND rcvd >= 0;
