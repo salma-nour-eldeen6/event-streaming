@@ -1,25 +1,26 @@
-## 📊 Exploratory Data Analysis (EDA)
+# Exploratory Data Analysis (EDA)
 
-As part of building the real-time data pipeline, an exploratory data analysis (EDA) step was performed on a sampled dataset extracted from the Iceberg Bronze layer.
+This folder contains exploratory analysis notebooks used during the development of the RIPE Atlas streaming pipeline.
 
----
+The analysis was performed on sampled Parquet data exported from the Bronze layer Iceberg tables.
 
-### 🎯 Objective
+## Purpose
 
-The goal of this EDA was to:
+The EDA phase was used to better understand the structure and behavior of the incoming RIPE Atlas measurements before designing the Silver transformation layer.
 
-- Understand the structure of the RIPE Atlas streaming data
-- Identify data quality issues
-- Analyze field distributions and completeness
-- Guide the design of the Silver layer
+The analysis focused on:
 
----
+- measurement distributions
+- field completeness
+- schema variability
+- latency-related metrics
+- data consistency across measurement types
 
-### 🔍 Key Findings
+## Observations
 
-#### 1. Heterogeneous Data Structure
+### Multiple Measurement Types
 
-The RIPE Atlas stream contains multiple measurement types, including:
+The incoming RIPE Atlas stream contains several measurement types, including:
 
 - ping
 - http
@@ -28,13 +29,18 @@ The RIPE Atlas stream contains multiple measurement types, including:
 - sslcert
 - ntp
 
-Each measurement type has its own schema and semantics, meaning not all fields are present in every record.
+During analysis, it became clear that the dataset does not follow a single unified schema.
+Different measurement types populate different fields depending on the protocol and measurement behavior.
 
----
+For example:
 
-#### 2. High Null Values Explained
+- ping measurements contain latency and packet statistics
+- DNS and HTTP measurements do not contain RTT-related fields
+- some records naturally contain null values for fields that are irrelevant to their measurement type
 
-Initial analysis showed high percentages of missing values across several columns such as:
+## Understanding Null Values
+
+Initial inspection showed high null percentages in columns such as:
 
 - avg_value
 - min_value
@@ -42,81 +48,66 @@ Initial analysis showed high percentages of missing values across several column
 - sent
 - rcvd
 
-However, deeper inspection revealed that:
+At first glance, this appeared to be a data quality issue.
 
-> These null values are not data quality issues, but are caused by mixing multiple measurement types with different schemas.
+However, after grouping records by measurement type, it became clear that the null values were primarily caused by schema differences between measurement categories rather than corrupted or missing data.
 
-Examples:
+This analysis prevented incorrect assumptions about dataset quality.
 
-- Ping measurements include latency and packet statistics → fields are populated
-- HTTP, DNS, SSL, and NTP measurements do not include these metrics → fields appear as null
+## Data-Driven Pipeline Decisions
 
----
+The EDA directly influenced the design of the Medallion Architecture layers.
 
-#### 3. Measurement-Type-Specific Field Availability
+### Bronze Layer Design
 
-By analyzing each measurement type separately:
+The Bronze layer was intentionally designed to preserve near-raw incoming measurements with minimal transformation.
 
-- Ping data was found to be clean, consistent, and complete for network performance analysis
-- Other measurement types have different structures and therefore contain nulls in unrelated fields
+This approach:
 
----
+- keeps all measurement types
+- preserves original event structures
+- supports future extensibility
+- avoids premature filtering
 
-### 🧠 Data-Driven Design Decisions
+### Silver Layer Design
 
-Based on the EDA results, the following decisions were made:
+The analysis showed that ping measurements were the most complete and consistent source for network quality analytics.
 
-#### ✅ Focus Silver Layer on Ping Measurements
+As a result, the Silver layer was designed specifically around ping measurements.
 
-To ensure clean and meaningful analytics:
+The Silver Flink job:
 
-- The Silver layer filters data using:
+- filters non-ping measurements
+- validates latency relationships
+- checks packet consistency
+- validates TTL and protocol values
+- generates derived analytical fields
 
-This allows:
+Additional derived columns include:
 
-- Accurate latency analysis
-- Reliable packet loss computation
-- Consistent schema without excessive null values
+- packet_loss
+- is_success
+- is_failed
+- event_date
+- event_hour
+- ip_version
 
----
+This resulted in a cleaner and more reliable analytical dataset with significantly reduced irrelevant null values.
 
-#### 🥉 Bronze Layer Role
+## Impact on the Project
 
-The Bronze layer stores all incoming data with minimal transformation:
+The EDA phase played an important role in shaping the streaming architecture and transformation logic.
 
-- Preserves raw structure
-- Supports future extensibility
-- Keeps all measurement types for potential future use
+It helped:
 
----
+- explain schema variability in the dataset
+- validate assumptions about data quality
+- guide Silver layer transformations
+- improve analytical consistency
+- support more reliable Gold layer aggregations
 
-#### 🥈 Silver Layer Role
+## Summary
 
-The Silver layer:
+The exploratory analysis revealed that the RIPE Atlas stream behaves as a multi-schema dataset where field availability depends heavily on the measurement type.
 
-- Filters relevant data (ping only)
-- Cleans and standardizes fields
-- Adds derived metrics such as:
-  - packet loss
-  - event_date
-  - event_hour
-
----
-
-### 🚀 Impact of EDA
-
-This EDA step was critical in:
-
-- Identifying that the dataset is multi-schema
-- Correctly explaining high null values
-- Avoiding incorrect assumptions about data quality
-- Enabling data-driven modeling decisions
-- Improving the design of the medallion architecture
-
----
-
-### 📌 Summary
-
-EDA revealed that null values were primarily caused by schema differences across measurement types, not by missing or corrupted data.
-
-This insight led to filtering strategies in the Silver layer, ensuring clean, reliable, and meaningful analytical datasets.
+These findings directly influenced the design of the Bronze and Silver Flink jobs and led to more reliable downstream analytics.
