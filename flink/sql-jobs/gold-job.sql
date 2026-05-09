@@ -147,11 +147,33 @@ SELECT
 
 FROM iceberg.atlas_db.silver_ping
 WHERE
+    -- Ensure required dimensional fields exist for proper aggregation
     dst_addr IS NOT NULL
     AND prb_id IS NOT NULL
     AND event_date IS NOT NULL
     AND event_hour IS NOT NULL
+
+    -- Ensure latency metrics are valid for network performance analysis
+    AND avg_latency_ms IS NOT NULL
+
+    -- Packet loss must be a valid ratio between 0 and 1
+    AND packet_loss BETWEEN 0 AND 1
+
+    -- Success/failure flags must be binary indicators only
+    AND is_success IN (0,1)
+    AND is_failed IN (0,1)
+
+    -- Packet size must be positive (invalid network packets are removed)
+    AND size > 0
 GROUP BY
+    -- Time-based aggregation key (date + hour granularity)
     CONCAT(event_date, '-', CAST(event_hour AS STRING)),
+
+    -- Group by probe (source measurement device)
     CAST(prb_id AS BIGINT),
-    CAST(dst_addr AS STRING);
+
+    -- Group by destination IP for network analysis
+    CAST(dst_addr AS STRING)
+HAVING
+    -- Ensure group has at least one valid record (defensive check)
+    COUNT(*) > 0;
