@@ -82,54 +82,49 @@ SELECT
     size,
     sent,
     rcvd,
-
     CASE
         WHEN avg_value >= 0 THEN avg_value
         ELSE NULL
     END AS avg_latency_ms,
-
     CASE
         WHEN min_value >= 0 THEN min_value
         ELSE NULL
     END AS min_latency_ms,
-
     CASE
         WHEN max_value >= 0 THEN max_value
         ELSE NULL
     END AS max_latency_ms,
-
     msm_id,
     prb_id,
     event_timestamp,
     TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3) AS event_time,
     measurement_type,
-
     CAST(
         CASE
             WHEN sent > 0 THEN (sent - rcvd) * 1.0 / sent
             ELSE NULL
         END AS DOUBLE
     ) AS packet_loss,
-
     CASE
         WHEN rcvd > 0 THEN 1
         ELSE 0
     END AS is_success,
-
     CASE
         WHEN rcvd = 0 THEN 1
         ELSE 0
     END AS is_failed,
-
     DATE_FORMAT(
         TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3),
         'yyyy-MM-dd'
     ) AS event_date,
-
-    CAST(HOUR(TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3)) AS INT) AS event_hour
-
+    CAST(
+        HOUR(TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3)) AS INT
+    ) AS event_hour
 FROM iceberg.atlas_db.bronze_measurements
-/*+ OPTIONS('streaming'='true', 'monitor-interval'='10s') */
+/*+ OPTIONS(
+    'streaming'='true',
+    'monitor-interval'='10s'
+) */
 WHERE
     measurement_type = 'ping'
     AND prb_id IS NOT NULL
