@@ -131,28 +131,17 @@ SELECT
 FROM iceberg.atlas_db.bronze_measurements
 /*+ OPTIONS('streaming'='true', 'monitor-interval'='10s') */
 WHERE
-    -- Focus only on ping measurements (exclude other measurement types)
     measurement_type = 'ping'
-
-    -- Ensure required identifiers exist for grouping & traceability
     AND prb_id IS NOT NULL
     AND dst_addr IS NOT NULL
     AND event_timestamp IS NOT NULL
-
-    -- Packet transmission validity
     AND sent >= 0
     AND rcvd >= 0
     AND rcvd <= sent
-
-    -- Network constraints
     AND ttl > 0
     AND ttl <= 255
     AND size > 0
-
-    -- Valid IP version
     AND af IN (4, 6)
-
-    -- Latency validation (clean formatting fix)
     AND (
         (
             min_value IS NOT NULL
