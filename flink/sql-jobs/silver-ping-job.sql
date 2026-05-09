@@ -116,4 +116,29 @@ SELECT
     DATE_FORMAT(TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3), 'yyyy-MM-dd') AS event_date,
     CAST(HOUR(TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3)) AS INT) AS event_hour
 FROM iceberg.atlas_db.bronze_measurements /*+ OPTIONS('streaming'='true', 'monitor-interval'='10s') */
-WHERE measurement_type = 'ping';
+WHERE
+    measurement_type = 'ping'
+    AND prb_id IS NOT NULL
+    AND dst_addr IS NOT NULL
+    AND event_timestamp IS NOT NULL
+    AND sent >= 0
+    AND rcvd >= 0
+    AND rcvd <= sent
+    AND ttl > 0
+    AND ttl <= 255
+    AND size > 0
+    AND af IN (4, 6)
+    AND (
+        (min_value >= 0 AND avg_value >= 0 AND max_value >= 0)
+        OR
+        (min_value IS NULL AND avg_value IS NULL AND max_value IS NULL)
+    )
+    AND (
+        min_value IS NULL
+        OR avg_value IS NULL
+        OR max_value IS NULL
+        OR (
+            min_value <= avg_value
+            AND avg_value <= max_value
+        )
+    );
