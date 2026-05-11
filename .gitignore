@@ -20,3 +20,5 @@ flink/lib/*.jar
 flink/flink/lib/*.jar
 #jupyeter autosave backups (copies of notebook everytime i save )
 .ipynb_checkpoints/
+#ignore windows zone identifier files(happens whn copying windows images to wsl)
+*:Zone.Identifier

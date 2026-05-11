@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # Kafka setup
 try:
     producer = KafkaProducer(
-        bootstrap_servers='kafka:29092',
+        bootstrap_servers='localhost:9092',
         key_serializer=lambda k: k.encode('utf-8'),
         value_serializer=lambda v: json.dumps(v).encode('utf-8')
     )
@@ -27,7 +27,6 @@ except KafkaError as e:
     exit(1)
 
 TOPIC = "atlas_measurements"
-INVALID_TOPIC = "atlas_invalid_measurements"
 
 
 # -----------------------------
@@ -137,3 +136,5 @@ if __name__ == "__main__":
         logger.info("Flushing and closing Kafka producer...")
         producer.flush()
         producer.close()
+
+ 
