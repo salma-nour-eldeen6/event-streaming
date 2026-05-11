@@ -1,8 +1,16 @@
 import asyncio
 import json
+import logging
 import websocket
 from kafka import KafkaProducer
-from kafka.errors import KafkaError 
+from kafka.errors import KafkaError
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+logger = logging.getLogger(__name__)
 
 # Kafka setup
 try:
@@ -11,50 +19,58 @@ try:
         key_serializer=lambda k: k.encode('utf-8'),
         value_serializer=lambda v: json.dumps(v).encode('utf-8')
     )
-    print("Kafka producer initialized successfully")
+    logger.info("Kafka producer initialized successfully")
 except KafkaError as e:
-    print("Failed to initialize Kafka producer:", e)
+    logger.error(f"Failed to initialize Kafka producer: {e}")
     exit(1)
 
 TOPIC = "atlas_measurements"
 
 # WebSocket callbacks
 def on_open(ws):
-    print("Connected to RIPE Atlas stream")
+    logger.info("Connected to RIPE Atlas stream")
     try:
         subscribe_msg = json.dumps([
             "atlas_subscribe", {"streamType": "result"}
         ])
         ws.send(subscribe_msg)
-        print("Subscription message sent")
+        logger.info("Subscription message sent")
     except Exception as e:
-        print("Error sending subscription message:", e)
+        logger.error(f"Error sending subscription message: {e}")
 
 def on_message(ws, message):
     try:
         event_type, payload = json.loads(message)
         key = str(payload.get("prb_id", "unknown"))
+
         future = producer.send(TOPIC, key=key, value=payload)
+
         # Add callback for success / error
         future.add_callback(on_send_success)
         future.add_errback(on_send_error)
+
     except Exception as e:
-        print("Error parsing or sending message:", e)
+        logger.error(f"Error parsing or sending message: {e}")
 
 def on_send_success(record_metadata):
-    print(f"Message sent to topic {record_metadata.topic} partition {record_metadata.partition} offset {record_metadata.offset}")
+    logger.info(
+        f"Message sent to topic {record_metadata.topic} "
+        f"partition {record_metadata.partition} "
+        f"offset {record_metadata.offset}"
+    )
 
 def on_send_error(excp):
-    print("Error sending message to Kafka:", excp)
+    logger.error(f"Error sending message to Kafka: {excp}")
 
 def on_error(ws, error):
-    print("WebSocket error:", error)
+    logger.error(f"WebSocket error: {error}")
 
 def on_close(ws, close_status_code, close_msg):
-    print("WebSocket closed:", close_status_code, close_msg)
+    logger.info(f"WebSocket closed: {close_status_code} {close_msg}")
 
 if __name__ == "__main__":
     ws_url = "wss://atlas-stream.ripe.net/stream/?client=docs-example"
+
     ws = websocket.WebSocketApp(
         ws_url,
         on_open=on_open,
@@ -62,13 +78,17 @@ if __name__ == "__main__":
         on_error=on_error,
         on_close=on_close
     )
+
     try:
         ws.run_forever()
+
     except KeyboardInterrupt:
-        print("WebSocket stopped by user")
+        logger.info("WebSocket stopped by user")
+
     except Exception as e:
-        print("Unexpected error running WebSocket:", e)
+        logger.error(f"Unexpected error running WebSocket: {e}")
+
     finally:
-        print("Flushing and closing Kafka producer...")
+        logger.info("Flushing and closing Kafka producer...")
         producer.flush()
         producer.close()
