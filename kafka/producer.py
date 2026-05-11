@@ -2,6 +2,8 @@ import asyncio
 import json
 import logging
 import websocket
+import uuid
+from datetime import datetime
 from kafka import KafkaProducer
 from kafka.errors import KafkaError
 
@@ -41,11 +43,14 @@ def on_open(ws):
 def on_message(ws, message):
     try:
         event_type, payload = json.loads(message)
+
         key = str(payload.get("prb_id", "unknown"))
+
+        # enrichment step added
+        payload = enrich(payload)
 
         future = producer.send(TOPIC, key=key, value=payload)
 
-        # Add callback for success / error
         future.add_callback(on_send_success)
         future.add_errback(on_send_error)
 
@@ -68,17 +73,12 @@ def on_error(ws, error):
 def on_close(ws, close_status_code, close_msg):
     logger.info(f"WebSocket closed: {close_status_code} {close_msg}")
 
-def validate(payload):
-    if not isinstance(payload, dict):
-        return False
-
-    if "prb_id" not in payload:
-        return False
-
-    if "timestamp" not in payload:
-        return False
-
-    return True
+# enrichment function 
+def enrich(payload):
+    enriched = payload.copy()
+    enriched["event_id"] = str(uuid.uuid4())
+    enriched["ingestion_time"] = datetime.utcnow().isoformat()
+    return enriched
 
 
 if __name__ == "__main__":
