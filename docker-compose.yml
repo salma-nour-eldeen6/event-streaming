@@ -349,18 +349,6 @@ services:
     networks:
       - data-pipeline
 
-  # ============================================
-  # dbt
-  # ============================================
-  dbt:
-    image: ghcr.io/dbt-labs/dbt-core
-    container_name: dbt
-    mem_limit: ${DBT_RAM}
-    volumes:
-      - ./dbt:/usr/app
-    working_dir: /usr/app
-    networks:
-      - data-pipeline
 
   # ============================================
   # Monitoring
