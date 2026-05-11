@@ -16,6 +16,7 @@ ADD JAR '/opt/flink/lib/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar';
 ADD JAR '/opt/flink/lib/bundle-2.20.18.jar';
 
 DROP CATALOG IF EXISTS iceberg;
+
 CREATE CATALOG iceberg WITH (
     'type' = 'iceberg',
     'catalog-impl' = 'org.apache.iceberg.rest.RESTCatalog',
@@ -63,7 +64,6 @@ WITH (
     'catalog-name' = 'iceberg',
     'format' = 'parquet'
 );
-
 
 INSERT INTO iceberg.atlas_db.silver_ping
 SELECT
@@ -113,7 +113,44 @@ SELECT
         WHEN rcvd = 0 THEN 1
         ELSE 0
     END AS is_failed,
-    DATE_FORMAT(TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3), 'yyyy-MM-dd') AS event_date,
-    CAST(HOUR(TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3)) AS INT) AS event_hour
-FROM iceberg.atlas_db.bronze_measurements /*+ OPTIONS('streaming'='true', 'monitor-interval'='10s') */
-WHERE measurement_type = 'ping';
+    DATE_FORMAT(
+        TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3),
+        'yyyy-MM-dd'
+    ) AS event_date,
+    CAST(
+        HOUR(TO_TIMESTAMP_LTZ(event_timestamp * 1000, 3)) AS INT
+    ) AS event_hour
+FROM iceberg.atlas_db.bronze_measurements
+/*+ OPTIONS(
+    'streaming'='true',
+    'monitor-interval'='10s'
+) */
+WHERE
+    measurement_type = 'ping'
+    AND prb_id IS NOT NULL
+    AND dst_addr IS NOT NULL
+    AND event_timestamp IS NOT NULL
+    AND sent >= 0
+    AND rcvd >= 0
+    AND rcvd <= sent
+    AND ttl > 0
+    AND ttl <= 255
+    AND size > 0
+    AND af IN (4, 6)
+    AND (
+        (
+            min_value IS NOT NULL
+            AND avg_value IS NOT NULL
+            AND max_value IS NOT NULL
+            AND min_value >= 0
+            AND avg_value >= 0
+            AND max_value >= 0
+            AND min_value <= avg_value
+            AND avg_value <= max_value
+        )
+        OR (
+            min_value IS NULL
+            AND avg_value IS NULL
+            AND max_value IS NULL
+        )
+    );
