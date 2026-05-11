@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 import websocket
@@ -6,6 +5,7 @@ import uuid
 from datetime import datetime
 from kafka import KafkaProducer
 from kafka.errors import KafkaError
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,7 +28,11 @@ except KafkaError as e:
 
 TOPIC = "atlas_measurements"
 
-# WebSocket callbacks
+
+# -----------------------------
+# WebSocket Callbacks
+# -----------------------------
+
 def on_open(ws):
     logger.info("Connected to RIPE Atlas stream")
     try:
@@ -40,6 +44,7 @@ def on_open(ws):
     except Exception as e:
         logger.error(f"Error sending subscription message: {e}")
 
+
 def on_message(ws, message):
     try:
         event_type, payload = json.loads(message)
@@ -49,16 +54,15 @@ def on_message(ws, message):
             return
 
         payload = enrich(payload)
-
         key = str(payload.get("prb_id", "unknown"))
 
         future = producer.send(TOPIC, key=key, value=payload)
-
         future.add_callback(on_send_success)
         future.add_errback(on_send_error)
 
     except Exception as e:
-        logger.error("Error parsing or sending message:", e)
+        logger.error(f"Error parsing or sending message: {e}")
+
 
 def on_send_success(record_metadata):
     logger.info(
@@ -67,21 +71,29 @@ def on_send_success(record_metadata):
         f"offset {record_metadata.offset}"
     )
 
+
 def on_send_error(excp):
     logger.error(f"Error sending message to Kafka: {excp}")
+
 
 def on_error(ws, error):
     logger.error(f"WebSocket error: {error}")
 
+
 def on_close(ws, close_status_code, close_msg):
     logger.info(f"WebSocket closed: {close_status_code} {close_msg}")
 
-# enrichment function 
+
+# -----------------------------
+# Data Processing
+# -----------------------------
+
 def enrich(payload):
     enriched = payload.copy()
     enriched["event_id"] = str(uuid.uuid4())
     enriched["ingestion_time"] = datetime.utcnow().isoformat()
     return enriched
+
 
 def validate(payload):
     if not isinstance(payload, dict):
@@ -95,6 +107,10 @@ def validate(payload):
 
     return True
 
+
+# -----------------------------
+# Main Entry Point
+# -----------------------------
 
 if __name__ == "__main__":
     ws_url = "wss://atlas-stream.ripe.net/stream/?client=docs-example"
