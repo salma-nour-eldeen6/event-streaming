@@ -68,6 +68,19 @@ def on_error(ws, error):
 def on_close(ws, close_status_code, close_msg):
     logger.info(f"WebSocket closed: {close_status_code} {close_msg}")
 
+def validate(payload):
+    if not isinstance(payload, dict):
+        return False
+
+    if "prb_id" not in payload:
+        return False
+
+    if "timestamp" not in payload:
+        return False
+
+    return True
+
+
 if __name__ == "__main__":
     ws_url = "wss://atlas-stream.ripe.net/stream/?client=docs-example"
 
