@@ -44,10 +44,13 @@ def on_message(ws, message):
     try:
         event_type, payload = json.loads(message)
 
-        key = str(payload.get("prb_id", "unknown"))
+        if not validate(payload):
+            logger.warning("Invalid payload skipped")
+            return
 
-        # enrichment step added
         payload = enrich(payload)
+
+        key = str(payload.get("prb_id", "unknown"))
 
         future = producer.send(TOPIC, key=key, value=payload)
 
@@ -55,7 +58,7 @@ def on_message(ws, message):
         future.add_errback(on_send_error)
 
     except Exception as e:
-        logger.error(f"Error parsing or sending message: {e}")
+        logger.error("Error parsing or sending message:", e)
 
 def on_send_success(record_metadata):
     logger.info(
@@ -79,6 +82,18 @@ def enrich(payload):
     enriched["event_id"] = str(uuid.uuid4())
     enriched["ingestion_time"] = datetime.utcnow().isoformat()
     return enriched
+
+def validate(payload):
+    if not isinstance(payload, dict):
+        return False
+
+    if "prb_id" not in payload:
+        return False
+
+    if "timestamp" not in payload:
+        return False
+
+    return True
 
 
 if __name__ == "__main__":
